@@ -141,7 +141,7 @@ async function getDashboardStats(supabase: SupabaseServerClient): Promise<Dashbo
         break;
       }
 
-      for (const row of data as CaptionDataRow[]) {
+      for (const row of data as unknown as CaptionDataRow[]) {
         if (captionImageIdColumn) {
           const imageId = row[captionImageIdColumn];
           if (imageId !== null && imageId !== undefined && String(imageId).trim().length > 0) {
@@ -191,7 +191,7 @@ async function getDashboardStats(supabase: SupabaseServerClient): Promise<Dashbo
 
     const { data } = await query;
 
-    recentCaptions = ((data ?? []) as CaptionDataRow[]).map((row) => {
+    recentCaptions = ((data ?? []) as unknown as CaptionDataRow[]).map((row) => {
       const rawCaption = captionTextColumn ? row[captionTextColumn] : "";
       const caption = truncateText(typeof rawCaption === "string" ? rawCaption : String(rawCaption ?? ""));
 
@@ -234,7 +234,7 @@ async function buildImageLabelMap(supabase: SupabaseServerClient, imageIds: stri
     return new Map();
   }
 
-  const entries = (data as Array<Record<string, unknown>>)
+  const entries = (data as unknown as Array<Record<string, unknown>>)
     .map((row) => [String(row.id), String(row[urlColumn] ?? "")] as const)
     .filter(([, label]) => label.length > 0)
     .map(([id, label]) => [id, truncateText(label, 72)] as const);
@@ -257,7 +257,7 @@ async function buildUserLabelMap(supabase: SupabaseServerClient, userIds: string
     return new Map();
   }
 
-  const entries = (data as Array<Record<string, unknown>>)
+  const entries = (data as unknown as Array<Record<string, unknown>>)
     .map((row) => [String(row.id), String(row[displayColumn] ?? "")] as const)
     .filter(([, label]) => label.length > 0)
     .map(([id, label]) => [id, truncateText(label)] as const);
@@ -280,7 +280,7 @@ async function buildUserEmailMap(supabase: SupabaseServerClient, userIds: string
     return new Map();
   }
 
-  const entries = (data as Array<Record<string, unknown>>)
+  const entries = (data as unknown as Array<Record<string, unknown>>)
     .map((row) => [String(row.id), String(row[emailColumn] ?? "")] as const)
     .filter(([, label]) => label.length > 0)
     .map(([id, label]) => [id, truncateText(label, 64)] as const);

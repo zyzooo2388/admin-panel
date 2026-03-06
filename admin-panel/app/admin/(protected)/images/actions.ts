@@ -83,14 +83,18 @@ export async function createImageInlineAction(input: { url: string; urlColumn: s
   const supabase = await createSupabaseServerClient();
   const payload: Record<string, string> = { [urlColumn]: url };
   const selectColumns = createdColumn ? ["id", urlColumn, createdColumn] : ["id", urlColumn];
-  const result = await supabase.from("images").insert(payload).select(selectColumns.join(", ")).single();
+  const result = (await supabase.from("images").insert(payload).select(selectColumns.join(", ")).single()) as {
+    data: Record<string, unknown> | null;
+    error: { message: string } | null;
+  };
 
   if (result.error) {
     return { ok: false as const, error: `Failed to create image: ${result.error.message}` };
   }
 
   revalidatePath("/admin/images");
-  return { ok: true as const, image: (result.data ?? {}) as Record<string, unknown> };
+  const imageRecord = result.data && typeof result.data === "object" ? result.data : {};
+  return { ok: true as const, image: imageRecord };
 }
 
 export async function updateImageAction(formData: FormData) {
