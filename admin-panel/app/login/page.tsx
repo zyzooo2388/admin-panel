@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -9,8 +10,10 @@ export default function LoginPage() {
   const hasSupabasePublicEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isSwitchAccountFlow = searchParams.get("switch") === "1";
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(
     hasSupabasePublicEnv ? null : "Supabase public env vars are missing.",
   );
@@ -20,37 +23,21 @@ export default function LoginPage() {
       return;
     }
 
+    let isActive = true;
     const supabase = createSupabaseBrowserClient();
-    let isMounted = true;
 
-    const syncSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session || !isMounted) {
-        return;
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (isActive) {
+        setHasSession(Boolean(data.session));
       }
-
-      router.replace("/admin");
-      router.refresh();
-    };
-
-    void syncSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session || !isMounted) {
-        return;
-      }
-
-      router.replace("/admin");
-      router.refresh();
-    });
+    })();
 
     return () => {
-      isMounted = false;
-      subscription.unsubscribe();
+      isActive = false;
     };
-  }, [hasSupabasePublicEnv, router]);
+  }, [hasSupabasePublicEnv]);
 
   const handleGoogleSignIn = async () => {
     if (!hasSupabasePublicEnv) {
@@ -65,6 +52,9 @@ export default function LoginPage() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
 
@@ -79,6 +69,18 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold text-zinc-900">Admin Login</h1>
         <p className="mt-2 text-sm text-zinc-600">Sign in with Google to access the admin panel.</p>
+        {isSwitchAccountFlow ? (
+          <p className="mt-2 text-sm text-zinc-600">Please choose a different Google account.</p>
+        ) : null}
+        {hasSession ? (
+          <p className="mt-2 text-sm text-zinc-600">
+            Already signed in?{" "}
+            <Link href="/admin" className="font-medium text-zinc-900 underline underline-offset-2">
+              Continue to admin
+            </Link>
+            .
+          </p>
+        ) : null}
 
         <button
           type="button"
