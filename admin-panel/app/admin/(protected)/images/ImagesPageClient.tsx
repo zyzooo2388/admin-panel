@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
 
 import ImagePreview from "./ImagePreview";
-import { createImageInlineAction, deleteImageAction, updateImageAction } from "./actions";
+import { createImageInlineAction, createImageUploadInlineAction, deleteImageAction, updateImageInlineAction } from "./actions";
 
 type ImageRecord = Record<string, unknown>;
 
@@ -47,7 +47,11 @@ export default function ImagesPageClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
   const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccess);
   const [isCreating, startCreateTransition] = useTransition();
+  const [isUploading, startUploadTransition] = useTransition();
+  const [isSaving, startSaveTransition] = useTransition();
+  const [savingId, setSavingId] = useState<string | null>(null);
   const createFormRef = useRef<HTMLFormElement>(null);
+  const uploadFormRef = useRef<HTMLFormElement>(null);
 
   const showCreated = Boolean(createdColumn);
   const colSpan = 4 + (showCreated ? 1 : 0);
@@ -95,6 +99,101 @@ export default function ImagesPageClient({
     });
   };
 
+  const onUploadSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!urlColumn) {
+      setErrorMessage("No valid image URL column was found.");
+      setSuccessMessage(null);
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const fileValue = formData.get("file");
+    const file = fileValue instanceof File ? fileValue : null;
+
+    if (!file || file.size === 0) {
+      setErrorMessage("Please choose an image file.");
+      setSuccessMessage(null);
+      return;
+    }
+
+    startUploadTransition(async () => {
+      const result = await createImageUploadInlineAction({ file, urlColumn, createdColumn });
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        setSuccessMessage(null);
+        return;
+      }
+
+      setImages((previous) => {
+        if (createdColumn) {
+          return sortImagesNewestFirst([...previous, result.image], createdColumn);
+        }
+
+        return [result.image, ...previous];
+      });
+
+      uploadFormRef.current?.reset();
+      setErrorMessage(null);
+      setSuccessMessage("Image uploaded and created.");
+    });
+  };
+
+  const onUpdateSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!urlColumn) {
+      setErrorMessage("No valid image URL column was found.");
+      setSuccessMessage(null);
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const idValue = formData.get("id");
+    const urlValue = formData.get("url");
+    const id = typeof idValue === "string" ? idValue.trim() : "";
+    const url = typeof urlValue === "string" ? urlValue.trim() : "";
+
+    if (!id || !url) {
+      setErrorMessage("Image ID and URL are required.");
+      setSuccessMessage(null);
+      return;
+    }
+
+    setSavingId(id);
+    startSaveTransition(async () => {
+      const result = await updateImageInlineAction({ id, url, urlColumn, createdColumn });
+
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        setSuccessMessage(null);
+        setSavingId(null);
+        return;
+      }
+
+      setImages((previous) =>
+        previous.map((image) => {
+          const currentId = String(image.id ?? "");
+          const updatedId = String(result.image.id ?? id);
+          if (currentId !== updatedId) {
+            return image;
+          }
+
+          return {
+            ...image,
+            ...result.image,
+            [urlColumn]: String(result.image[urlColumn] ?? url),
+          };
+        }),
+      );
+
+      setErrorMessage(null);
+      setSuccessMessage("Image updated.");
+      setSavingId(null);
+    });
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-zinc-900">Images</h1>
@@ -127,6 +226,24 @@ export default function ImagesPageClient({
         </form>
       </section>
 
+      <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Upload image file</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Requires a configured Supabase storage bucket via <code>NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET</code> or{" "}
+          <code>SUPABASE_IMAGE_BUCKET</code>.
+        </p>
+        <form ref={uploadFormRef} onSubmit={onUploadSubmit} className="mt-4 grid gap-3 md:grid-cols-3">
+          <input name="file" type="file" accept="image/*" required className="rounded-lg border border-zinc-300 px-3 py-2 text-sm" />
+          <button
+            type="submit"
+            className="md:col-span-3 inline-flex w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!urlColumn || isUploading}
+          >
+            {isUploading ? "Uploading..." : "Upload image"}
+          </button>
+        </form>
+      </section>
+
       <section className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
@@ -148,7 +265,7 @@ export default function ImagesPageClient({
                 return (
                   <tr key={id} className="border-t border-zinc-100 align-top text-zinc-700">
                     <td className="px-4 py-3">
-                      <ImagePreview src={imageUrl} alt={`Image ${id || "preview"}`} />
+                      <ImagePreview key={`${id}:${imageUrl}`} src={imageUrl} alt={`Image ${id || "preview"}`} />
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">{id || "-"}</td>
                     <td className="px-4 py-3">
@@ -170,7 +287,7 @@ export default function ImagesPageClient({
                       <td className="px-4 py-3">{createdValue ? new Date(String(createdValue)).toLocaleString() : "-"}</td>
                     ) : null}
                     <td className="px-4 py-3">
-                      <form action={updateImageAction} className="mb-2 space-y-2">
+                      <form onSubmit={onUpdateSubmit} className="mb-2 space-y-2">
                         <input type="hidden" name="id" value={id} />
                         <input type="hidden" name="url_column" value={urlColumn ?? ""} />
                         <input
@@ -183,9 +300,9 @@ export default function ImagesPageClient({
                         <button
                           type="submit"
                           className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
-                          disabled={!urlColumn}
+                          disabled={!urlColumn || (isSaving && savingId === id)}
                         >
-                          Save
+                          {isSaving && savingId === id ? "Saving..." : "Save"}
                         </button>
                       </form>
 

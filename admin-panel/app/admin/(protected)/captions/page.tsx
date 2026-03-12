@@ -1,95 +1,78 @@
+import CaptionsTableClient, { type CaptionRow } from "./CaptionsTableClient";
 import { requireSuperadmin } from "@/lib/auth/requireSuperadmin";
-import { CAPTION_TEXT_FALLBACK_COLUMNS, CREATED_TIMESTAMP_FALLBACK_COLUMNS, pickFirstWorkingColumn } from "@/lib/db/columnFallback";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
 
 export default async function CaptionsPage() {
   await requireSuperadmin();
   const supabase = await createSupabaseServerClient();
 
-  const textColumn = await pickFirstWorkingColumn(supabase, "captions", CAPTION_TEXT_FALLBACK_COLUMNS);
-  const imageIdColumn = await pickFirstWorkingColumn(supabase, "captions", ["image_id"]);
-  const userIdColumn = await pickFirstWorkingColumn(supabase, "captions", ["user_id"]);
-  const createdColumn = await pickFirstWorkingColumn(supabase, "captions", CREATED_TIMESTAMP_FALLBACK_COLUMNS);
+  const { data, error, count } = await supabase
+    .from("captions")
+    .select(
+      "id, created_datetime_utc, modified_datetime_utc, content, is_public, profile_id, image_id, humor_flavor_id, is_featured, caption_request_id, like_count, llm_prompt_chain_id",
+      { count: "estimated" },
+    )
+    .order("created_datetime_utc", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(500);
 
-  let captions: Record<string, unknown>[] | null = null;
-  let errorMessage: string | null = null;
+  const rows: CaptionRow[] = (data ?? []).map((row) => ({
+    id: row.id === null || row.id === undefined ? null : String(row.id),
+    created_datetime_utc: typeof row.created_datetime_utc === "string" ? row.created_datetime_utc : null,
+    modified_datetime_utc: typeof row.modified_datetime_utc === "string" ? row.modified_datetime_utc : null,
+    content: typeof row.content === "string" ? row.content : null,
+    is_public: typeof row.is_public === "boolean" ? row.is_public : null,
+    profile_id: row.profile_id === null || row.profile_id === undefined ? null : String(row.profile_id),
+    image_id: row.image_id === null || row.image_id === undefined ? null : String(row.image_id),
+    humor_flavor_id: row.humor_flavor_id === null || row.humor_flavor_id === undefined ? null : String(row.humor_flavor_id),
+    is_featured: typeof row.is_featured === "boolean" ? row.is_featured : null,
+    caption_request_id: row.caption_request_id === null || row.caption_request_id === undefined ? null : String(row.caption_request_id),
+    like_count: toNullableNumber(row.like_count),
+    llm_prompt_chain_id:
+      row.llm_prompt_chain_id === null || row.llm_prompt_chain_id === undefined ? null : String(row.llm_prompt_chain_id),
+  }));
 
-  if (!textColumn) {
-    errorMessage = `Failed to load captions: none of these text columns exist: ${CAPTION_TEXT_FALLBACK_COLUMNS.join(", ")}`;
-  } else {
-    const selectColumns = ["id", textColumn];
-    if (imageIdColumn) {
-      selectColumns.push(imageIdColumn);
-    }
-    if (userIdColumn) {
-      selectColumns.push(userIdColumn);
-    }
-    if (createdColumn) {
-      selectColumns.push(createdColumn);
-    }
+  const humorFlavorIds = [...new Set(rows.map((row) => row.humor_flavor_id).filter((value): value is string => Boolean(value)))];
 
-    let query = supabase.from("captions").select(selectColumns.join(", "));
-    if (createdColumn) {
-      query = query.order(createdColumn, { ascending: false });
-    }
+  let humorFlavorMap: Record<string, string> = {};
+  if (humorFlavorIds.length > 0) {
+    const { data: humorFlavorData } = await supabase.from("humor_flavors").select("id, slug, name").in("id", humorFlavorIds);
 
-    const { data, error } = await query.limit(500);
-    captions = data as Record<string, unknown>[] | null;
-    errorMessage = error ? `Failed to load captions: ${error.message}` : null;
+    humorFlavorMap = Object.fromEntries(
+      (humorFlavorData ?? [])
+        .map((row) => {
+          const id = row.id === null || row.id === undefined ? null : String(row.id);
+          if (!id) {
+            return null;
+          }
+
+          const slug = typeof row.slug === "string" ? row.slug : null;
+          const name = typeof row.name === "string" ? row.name : null;
+          return [id, slug || name || `Flavor #${id}`];
+        })
+        .filter((entry): entry is [string, string] => Array.isArray(entry)),
+    );
   }
 
-  const showImageId = Boolean(imageIdColumn);
-  const showUserId = Boolean(userIdColumn);
-  const showCreated = Boolean(createdColumn);
-  const colSpan = 1 + (showImageId ? 1 : 0) + (showUserId ? 1 : 0) + (showCreated ? 1 : 0);
-
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">Captions</h1>
-      <p className="mt-1 text-sm text-zinc-600">Read-only list of captions from staging.</p>
-
-      <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
-            <tr>
-              <th className="px-4 py-3">Caption</th>
-              {showImageId ? <th className="px-4 py-3">Image ID</th> : null}
-              {showUserId ? <th className="px-4 py-3">User ID</th> : null}
-              {showCreated ? <th className="px-4 py-3">Created</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {errorMessage ? (
-              <tr>
-                <td className="px-4 py-4 text-red-600" colSpan={colSpan}>
-                  {errorMessage}
-                </td>
-              </tr>
-            ) : captions && captions.length > 0 ? (
-              captions.map((caption) => {
-                const id = String(caption.id ?? "");
-                const captionValue = String(caption[textColumn as string] ?? "-");
-                const createdValue = showCreated ? caption[createdColumn as string] : null;
-
-                return (
-                  <tr key={id} className="border-t border-zinc-100 text-zinc-700">
-                    <td className="max-w-xl px-4 py-3">{captionValue}</td>
-                    {showImageId ? <td className="px-4 py-3 font-mono text-xs">{String(caption[imageIdColumn as string] ?? "-")}</td> : null}
-                    {showUserId ? <td className="px-4 py-3 font-mono text-xs">{String(caption[userIdColumn as string] ?? "-")}</td> : null}
-                    {showCreated ? <td className="px-4 py-3">{createdValue ? new Date(String(createdValue)).toLocaleString() : "-"}</td> : null}
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td className="px-4 py-4 text-zinc-500" colSpan={colSpan}>
-                  No captions found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <CaptionsTableClient
+      rows={rows}
+      errorMessage={error?.message ?? null}
+      totalCount={typeof count === "number" ? count : null}
+      humorFlavorMap={humorFlavorMap}
+    />
   );
 }

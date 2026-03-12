@@ -4,13 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import LogoutButton from "@/components/auth/LogoutButton";
-
-const NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/profiles", label: "Profiles" },
-  { href: "/admin/images", label: "Images" },
-  { href: "/admin/captions", label: "Captions" },
-];
+import { ADMIN_NAV_ITEMS } from "@/lib/admin/resources";
 
 type Props = {
   email: string | null;
@@ -26,8 +20,8 @@ export default function AdminSidebar({ email }: Props) {
         <p className="mt-1 truncate text-sm text-zinc-700">{email ?? "Unknown user"}</p>
       </div>
 
-      <nav className="space-y-1">
-        {NAV_ITEMS.map((item) => {
+      <nav className="max-h-[60vh] space-y-1 overflow-y-auto pr-1 lg:max-h-[72vh]">
+        {ADMIN_NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/admin" && pathname.startsWith(item.href));
