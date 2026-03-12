@@ -50,7 +50,12 @@ async function loadProviderOptions(supabase: Awaited<ReturnType<typeof createSup
   const labelsById: Record<string, string> = {};
   let idKind: ColumnKind = "string";
 
-  for (const row of data as Record<string, unknown>[]) {
+  for (const item of data) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const row = item as Record<string, unknown>;
     const rawId = row.id;
     const value = stringifyProviderId(rawId);
     if (!value) {

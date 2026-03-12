@@ -29,7 +29,12 @@ async function loadTermTypeLabels(supabase: SupabaseClient) {
 
   const labels: Record<string, string> = {};
 
-  for (const row of data as Record<string, unknown>[]) {
+  for (const item of data) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const row = item as Record<string, unknown>;
     const id = row.id;
     const labelValue = row[labelColumn];
 

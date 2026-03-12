@@ -184,11 +184,11 @@ export default function CaptionExamplesTableClient({
 
   const editableColumnSet = useMemo(() => new Set(editableColumns), [editableColumns]);
   const requiredColumnSet = useMemo(() => new Set(requiredColumns), [requiredColumns]);
-  const orderedEditColumns = useMemo(
-    () =>
-      REQUIRED_LAYOUT_FIELDS.filter((field) => editableColumnSet.has(field)).concat(
-        editableColumns.filter((column) => !REQUIRED_LAYOUT_FIELD_SET.has(column)),
-      ),
+  const orderedEditColumns = useMemo<string[]>(
+    () => [
+      ...REQUIRED_LAYOUT_FIELDS.filter((field) => editableColumnSet.has(field)),
+      ...editableColumns.filter((column) => !REQUIRED_LAYOUT_FIELD_SET.has(column)),
+    ],
     [editableColumnSet, editableColumns],
   );
 
