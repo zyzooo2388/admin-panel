@@ -41,7 +41,7 @@ function toRow(data: Record<string, unknown> | null): AllowedSignupDomainRow {
 }
 
 export async function createAllowedSignupDomainInlineAction(input: { apexDomain: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const apexDomain = normalizeApexDomain(input?.apexDomain);
   const validationError = validateApexDomain(apexDomain);
@@ -52,7 +52,11 @@ export async function createAllowedSignupDomainInlineAction(input: { apexDomain:
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("allowed_signup_domains")
-    .insert({ apex_domain: apexDomain })
+    .insert({
+      apex_domain: apexDomain,
+      created_by_user_id: auth.user.id,
+      modified_by_user_id: auth.user.id,
+    })
     .select("id, created_datetime_utc, apex_domain")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
 
@@ -65,7 +69,7 @@ export async function createAllowedSignupDomainInlineAction(input: { apexDomain:
 }
 
 export async function updateAllowedSignupDomainInlineAction(input: { id: string; apexDomain: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const id = cleanId(input?.id);
   const apexDomain = normalizeApexDomain(input?.apexDomain);
@@ -82,7 +86,10 @@ export async function updateAllowedSignupDomainInlineAction(input: { id: string;
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("allowed_signup_domains")
-    .update({ apex_domain: apexDomain })
+    .update({
+      apex_domain: apexDomain,
+      modified_by_user_id: auth.user.id,
+    })
     .eq("id", id)
     .select("id, created_datetime_utc, apex_domain")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };

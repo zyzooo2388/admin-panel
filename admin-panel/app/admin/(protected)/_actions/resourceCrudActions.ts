@@ -213,7 +213,7 @@ async function resolveCrudContext(formData: FormData) {
 }
 
 export async function createResourceRowAction(formData: FormData) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const { redirectPath, config, tableName, supabase } = await resolveCrudContext(formData);
   if (config.mode !== "crud") {
@@ -247,7 +247,13 @@ export async function createResourceRowAction(formData: FormData) {
     redirect(toPath(redirectPath, "error", `Failed to create ${config.title}: ${requiredFieldError}`));
   }
 
-  const { error } = await supabase.from(tableName).insert(normalizedPayloadResult.payload);
+  const payloadWithAudit = {
+    ...normalizedPayloadResult.payload,
+    created_by_user_id: auth.user.id,
+    modified_by_user_id: auth.user.id,
+  };
+
+  const { error } = await supabase.from(tableName).insert(payloadWithAudit);
   if (error) {
     redirect(toPath(redirectPath, "error", `Failed to create ${config.title}: ${error.message}`));
   }
@@ -257,7 +263,7 @@ export async function createResourceRowAction(formData: FormData) {
 }
 
 export async function updateResourceRowAction(formData: FormData) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const { redirectPath, config, tableName, supabase } = await resolveCrudContext(formData);
   if (config.mode === "read") {
@@ -297,7 +303,12 @@ export async function updateResourceRowAction(formData: FormData) {
     redirect(toPath(redirectPath, "error", `Failed to update ${config.title}: ${requiredFieldError}`));
   }
 
-  const { error } = await supabase.from(tableName).update(normalizedPayloadResult.payload).eq(idColumn, rowId);
+  const payloadWithAudit = {
+    ...normalizedPayloadResult.payload,
+    modified_by_user_id: auth.user.id,
+  };
+
+  const { error } = await supabase.from(tableName).update(payloadWithAudit).eq(idColumn, rowId);
   if (error) {
     redirect(toPath(redirectPath, "error", `Failed to update ${config.title}: ${error.message}`));
   }

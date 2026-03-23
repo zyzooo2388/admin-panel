@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -123,6 +123,7 @@ export default function HumorMixPageClient({
   emptyStateMessage,
 }: Props) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const actorProfileIdRef = useRef<string | null>(null);
   const [search, setSearch] = useState("");
   const [tableRows, setTableRows] = useState<HumorMixRow[]>(rows);
   const [formsById, setFormsById] = useState<Record<number, RowFormState>>(
@@ -153,6 +154,23 @@ export default function HumorMixPageClient({
   }, [formsById, search, tableRows]);
 
   const resolvedEmptyStateMessage = emptyStateMessage ?? "No rows found.";
+
+  async function getActorProfileId() {
+    if (actorProfileIdRef.current) {
+      return actorProfileIdRef.current;
+    }
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    if (error || !user?.id) {
+      return null;
+    }
+
+    actorProfileIdRef.current = user.id;
+    return user.id;
+  }
 
   function setFormValue(rowId: number, field: keyof RowFormState, value: string) {
     setFormsById((current) => ({
@@ -216,11 +234,22 @@ export default function HumorMixPageClient({
     setGlobalSuccess(null);
 
     try {
+      const actorProfileId = await getActorProfileId();
+      if (!actorProfileId) {
+        setErrorsById((current) => ({
+          ...current,
+          [rowId]: { ...(current[rowId] ?? {}), general: "Save failed: unable to resolve current user." },
+        }));
+        setGlobalError("Failed to update Humor Mix: unable to resolve current user.");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("humor_flavor_mix")
         .update({
           humor_flavor_id: parsedHumorFlavorId,
           caption_count: parsedCaptionCount,
+          modified_by_user_id: actorProfileId,
         })
         .eq("id", rowId)
         .select()

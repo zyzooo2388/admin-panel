@@ -36,7 +36,10 @@ export default async function BootstrapPage({ searchParams }: Props) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("profiles")
-    .update({ is_superadmin: true })
+    .update({
+      is_superadmin: true,
+      modified_by_user_id: auth.user.id,
+    })
     .eq("id", auth.user.id);
 
   return (

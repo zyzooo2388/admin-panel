@@ -240,6 +240,7 @@ export default function TermsCrudTableClient({
 }: Props) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const createFormRef = useRef<HTMLFormElement>(null);
+  const actorProfileIdRef = useRef<string | null>(null);
   const [search, setSearch] = useState("");
   const [tableRows, setTableRows] = useState<Record<string, unknown>[]>(() => sortTermsByCreatedDatetimeDesc(rows));
   const [createValidationError, setCreateValidationError] = useState<string | null>(null);
@@ -313,6 +314,23 @@ export default function TermsCrudTableClient({
     }
 
     return null;
+  }
+
+  async function getActorProfileId() {
+    if (actorProfileIdRef.current) {
+      return actorProfileIdRef.current;
+    }
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    if (error || !user?.id) {
+      return null;
+    }
+
+    actorProfileIdRef.current = user.id;
+    return user.id;
   }
 
   function handleCreateSubmit(event: FormEvent<HTMLFormElement>) {
@@ -397,7 +415,18 @@ export default function TermsCrudTableClient({
 
     void (async () => {
       try {
-        const { data, error: insertError } = await supabase.from("terms").insert(payload).select("*").single();
+        const actorProfileId = await getActorProfileId();
+        if (!actorProfileId) {
+          setGlobalError(`Failed to create ${title}: unable to resolve current user.`);
+          return;
+        }
+
+        const payloadWithAudit = {
+          ...payload,
+          created_by_user_id: actorProfileId,
+          modified_by_user_id: actorProfileId,
+        };
+        const { data, error: insertError } = await supabase.from("terms").insert(payloadWithAudit).select("*").single();
 
         if (insertError) {
           setGlobalError(`Failed to create ${title}: ${insertError.message}`);

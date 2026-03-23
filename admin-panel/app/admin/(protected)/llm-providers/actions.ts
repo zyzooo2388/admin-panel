@@ -36,7 +36,7 @@ function toRow(data: Record<string, unknown> | null): LlmProviderRow {
 }
 
 export async function createLlmProviderInlineAction(input: { name: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const name = normalizeName(input?.name);
   const validationError = validateName(name);
@@ -47,7 +47,11 @@ export async function createLlmProviderInlineAction(input: { name: string }) {
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("llm_providers")
-    .insert({ name })
+    .insert({
+      name,
+      created_by_user_id: auth.user.id,
+      modified_by_user_id: auth.user.id,
+    })
     .select("id, created_datetime_utc, name")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
 
@@ -60,7 +64,7 @@ export async function createLlmProviderInlineAction(input: { name: string }) {
 }
 
 export async function updateLlmProviderInlineAction(input: { id: string; name: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const id = cleanId(input?.id);
   const name = normalizeName(input?.name);
@@ -76,7 +80,10 @@ export async function updateLlmProviderInlineAction(input: { id: string; name: s
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("llm_providers")
-    .update({ name })
+    .update({
+      name,
+      modified_by_user_id: auth.user.id,
+    })
     .eq("id", id)
     .select("id, created_datetime_utc, name")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };

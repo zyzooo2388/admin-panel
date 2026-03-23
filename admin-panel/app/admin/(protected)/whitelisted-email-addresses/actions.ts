@@ -44,7 +44,7 @@ function toRow(data: Record<string, unknown> | null): WhitelistedEmailAddressRow
 }
 
 export async function createWhitelistedEmailAddressInlineAction(input: { emailAddress: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const emailAddress = normalizeEmailAddress(input?.emailAddress);
   const validationError = validateEmailAddress(emailAddress);
@@ -55,7 +55,11 @@ export async function createWhitelistedEmailAddressInlineAction(input: { emailAd
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("whitelist_email_addresses")
-    .insert({ email_address: emailAddress })
+    .insert({
+      email_address: emailAddress,
+      created_by_user_id: auth.user.id,
+      modified_by_user_id: auth.user.id,
+    })
     .select("id, created_datetime_utc, modified_datetime_utc, email_address")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
 
@@ -68,7 +72,7 @@ export async function createWhitelistedEmailAddressInlineAction(input: { emailAd
 }
 
 export async function updateWhitelistedEmailAddressInlineAction(input: { id: string; emailAddress: string }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const id = cleanId(input?.id);
   const emailAddress = normalizeEmailAddress(input?.emailAddress);
@@ -85,7 +89,10 @@ export async function updateWhitelistedEmailAddressInlineAction(input: { id: str
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("whitelist_email_addresses")
-    .update({ email_address: emailAddress })
+    .update({
+      email_address: emailAddress,
+      modified_by_user_id: auth.user.id,
+    })
     .eq("id", id)
     .select("id, created_datetime_utc, modified_datetime_utc, email_address")
     .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };

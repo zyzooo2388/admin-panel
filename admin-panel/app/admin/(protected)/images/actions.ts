@@ -51,7 +51,7 @@ function sanitizeFileName(value: string) {
 }
 
 export async function createImageAction(formData: FormData) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const url = cleanOptionalString(formData.get("url"));
   const urlColumn = cleanUrlColumn(formData.get("url_column"));
@@ -64,7 +64,11 @@ export async function createImageAction(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const payload: Record<string, string> = { [urlColumn]: url };
+  const payload: Record<string, string> = {
+    [urlColumn]: url,
+    created_by_user_id: auth.user.id,
+    modified_by_user_id: auth.user.id,
+  };
 
   const result = await supabase.from("images").insert(payload);
 
@@ -77,7 +81,7 @@ export async function createImageAction(formData: FormData) {
 }
 
 export async function createImageInlineAction(input: { url: string; urlColumn: string; createdColumn: string | null }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const url = typeof input?.url === "string" ? input.url.trim() : "";
   const urlColumn = cleanUrlColumn(input?.urlColumn ?? null);
@@ -91,7 +95,11 @@ export async function createImageInlineAction(input: { url: string; urlColumn: s
   }
 
   const supabase = await createSupabaseServerClient();
-  const payload: Record<string, string> = { [urlColumn]: url };
+  const payload: Record<string, string> = {
+    [urlColumn]: url,
+    created_by_user_id: auth.user.id,
+    modified_by_user_id: auth.user.id,
+  };
   const selectColumns = createdColumn ? ["id", urlColumn, createdColumn] : ["id", urlColumn];
   const result = (await supabase.from("images").insert(payload).select(selectColumns.join(", ")).single()) as {
     data: Record<string, unknown> | null;
@@ -112,7 +120,7 @@ export async function createImageUploadInlineAction(input: {
   urlColumn: string;
   createdColumn: string | null;
 }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const file = input?.file;
   const urlColumn = cleanUrlColumn(input?.urlColumn ?? null);
@@ -151,7 +159,11 @@ export async function createImageUploadInlineAction(input: {
     return { ok: false as const, error: "Failed to build uploaded image URL." };
   }
 
-  const payload: Record<string, string> = { [urlColumn]: publicUrl };
+  const payload: Record<string, string> = {
+    [urlColumn]: publicUrl,
+    created_by_user_id: auth.user.id,
+    modified_by_user_id: auth.user.id,
+  };
   const selectColumns = createdColumn ? ["id", urlColumn, createdColumn] : ["id", urlColumn];
   const insertResult = (await supabase.from("images").insert(payload).select(selectColumns.join(", ")).single()) as {
     data: Record<string, unknown> | null;
@@ -167,7 +179,7 @@ export async function createImageUploadInlineAction(input: {
 }
 
 export async function updateImageAction(formData: FormData) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const id = cleanOptionalString(formData.get("id"));
   const url = cleanOptionalString(formData.get("url"));
@@ -181,7 +193,10 @@ export async function updateImageAction(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const payload: Record<string, string> = { [urlColumn]: url };
+  const payload: Record<string, string> = {
+    [urlColumn]: url,
+    modified_by_user_id: auth.user.id,
+  };
 
   const result = await supabase.from("images").update(payload).eq("id", id);
 
@@ -199,7 +214,7 @@ export async function updateImageInlineAction(input: {
   urlColumn: string;
   createdColumn: string | null;
 }) {
-  await requireSuperadmin();
+  const auth = await requireSuperadmin();
 
   const id = typeof input?.id === "string" ? input.id.trim() : "";
   const url = typeof input?.url === "string" ? input.url.trim() : "";
@@ -214,7 +229,10 @@ export async function updateImageInlineAction(input: {
   }
 
   const supabase = await createSupabaseServerClient();
-  const payload: Record<string, string> = { [urlColumn]: url };
+  const payload: Record<string, string> = {
+    [urlColumn]: url,
+    modified_by_user_id: auth.user.id,
+  };
   const selectColumns = createdColumn ? ["id", urlColumn, createdColumn] : ["id", urlColumn];
   const result = (await supabase
     .from("images")
