@@ -1,6 +1,6 @@
 import HumorMixPageClient, { type HumorFlavorOption, type HumorMixRow } from "./HumorMixPageClient";
 import { requireSuperadmin } from "@/lib/auth/requireSuperadmin";
-import { loadAdminResource, resolveTableName } from "@/lib/admin/resourceData";
+import { loadAdminResource } from "@/lib/admin/resourceData";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -49,27 +49,27 @@ export default async function HumorMixPage({ searchParams }: Props) {
   const supabase = await createSupabaseServerClient();
   const resource = await loadAdminResource(supabase, "humor-mix", 500);
   const rows = resource.rows.map(toRow).filter((row): row is HumorMixRow => row !== null);
-  const flavorsTable = await resolveTableName(supabase, ["humor_flavors", "humor_flavor", "humorFlavors"]);
-  let humorFlavorOptions: HumorFlavorOption[] = [];
+  const { data, error: humorFlavorsError } = await supabase
+    .from("humor_flavors")
+    .select("id, slug, description")
+    .order("id", { ascending: true });
 
-  if (flavorsTable.tableName) {
-    const { data } = await supabase
-      .from(flavorsTable.tableName)
-      .select("id, name")
-      .order("id", { ascending: true });
-
-    humorFlavorOptions =
-      data
-        ?.map((row) => {
-          const id = toNumber(row.id);
-          if (id === null) {
-            return null;
-          }
-          const name = typeof row.name === "string" && row.name.trim() ? row.name.trim() : `Flavor ${id}`;
-          return { id, name };
-        })
-        .filter((row): row is HumorFlavorOption => row !== null) ?? [];
+  if (humorFlavorsError) {
+    console.error("Failed to load humor flavor options for Humor Mix.", humorFlavorsError);
   }
+
+  const humorFlavorOptions: HumorFlavorOption[] =
+    data
+      ?.map((row) => {
+        const id = toNumber(row.id);
+        if (id === null) {
+          return null;
+        }
+        const slug = typeof row.slug === "string" && row.slug.trim() ? row.slug.trim() : null;
+        const description = typeof row.description === "string" && row.description.trim() ? row.description.trim() : null;
+        return { id, slug, description };
+      })
+      .filter((row): row is HumorFlavorOption => row !== null) ?? [];
 
   return (
     <HumorMixPageClient
@@ -77,6 +77,7 @@ export default async function HumorMixPage({ searchParams }: Props) {
       description={resource.config.description}
       rows={rows}
       humorFlavors={humorFlavorOptions}
+      humorFlavorsError={humorFlavorsError?.message ?? null}
       errorMessage={params.error ?? resource.error}
       successMessage={params.success ?? null}
       emptyStateMessage="No humor mix rows yet. Add a row in Supabase to configure humor flavor mix values."

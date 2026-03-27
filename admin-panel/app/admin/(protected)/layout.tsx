@@ -11,9 +11,11 @@ export default async function ProtectedAdminLayout({
   const auth = await requireSuperadmin();
 
   return (
-    <div className="min-h-screen bg-zinc-100 lg:flex">
+    <div className="admin-shell min-h-screen lg:flex">
       <AdminSidebar email={auth.user.email ?? null} />
-      <main className="w-full p-4 lg:p-8">{children}</main>
+      <main className="w-full p-5 lg:p-8 xl:p-10">
+        <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+      </main>
     </div>
   );
 }

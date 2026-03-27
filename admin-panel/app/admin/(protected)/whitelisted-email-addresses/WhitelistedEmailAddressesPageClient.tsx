@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
+
 import {
   createWhitelistedEmailAddressInlineAction,
   deleteWhitelistedEmailAddressInlineAction,
@@ -22,17 +24,6 @@ type WhitelistedEmailAddressesPageClientProps = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
 
 function normalizeEmailAddress(value: string) {
   return value.trim().toLowerCase();
@@ -61,16 +52,8 @@ function hasDuplicateEmail(rows: WhitelistedEmailAddressRow[], emailAddress: str
 }
 
 function formatUtc(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return `${UTC_FORMATTER.format(parsed)} UTC`;
+  const formatted = formatUtcDate(value, { emptyFallback: "", preserveInvalid: true });
+  return formatted || null;
 }
 
 export default function WhitelistedEmailAddressesPageClient({
@@ -192,30 +175,26 @@ export default function WhitelistedEmailAddressesPageClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">Whitelisted Email Addresses</h1>
-      <p className="mt-1 text-sm text-zinc-600">Manage whitelisted email addresses (CRUD).</p>
+      <h1 className="admin-page-title">Whitelisted Email Addresses</h1>
+      <p className="admin-page-description">Manage whitelisted email addresses (CRUD).</p>
 
-      {errorMessage ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
-      ) : null}
-      {successMessage ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>
-      ) : null}
+      {errorMessage ? <p className="admin-alert-danger mt-4">{errorMessage}</p> : null}
+      {successMessage ? <p className="admin-alert-success mt-4">{successMessage}</p> : null}
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <section className="admin-card mt-6 p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
-          <label className="block text-xs text-zinc-600">
+          <label className="block text-xs text-slate-500">
             <span className="mb-1 block font-medium">Search</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by ID or email address..."
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900"
+              className="admin-input"
             />
           </label>
 
           <div className="flex items-end gap-2">
-            <label className="block flex-1 text-xs text-zinc-600">
+            <label className="block flex-1 text-xs text-slate-500">
               <span className="mb-1 block font-medium">New Email Address</span>
               <input
                 value={createValue}
@@ -227,14 +206,14 @@ export default function WhitelistedEmailAddressesPageClient({
                   }
                 }}
                 placeholder="name@example.com"
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900"
+                className="admin-input"
               />
             </label>
             <button
               type="button"
               onClick={onCreate}
               disabled={isCreating}
-              className="inline-flex h-10 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="admin-button-primary inline-flex h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreating ? "Creating..." : "Create"}
             </button>
@@ -242,15 +221,15 @@ export default function WhitelistedEmailAddressesPageClient({
         </div>
       </section>
 
-      <section className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+      <section className="admin-table-wrap mt-6">
+        <table className="admin-table min-w-full">
+          <thead className="text-left">
             <tr>
-              <th className="px-4 py-3">ID</th>
-              <th className="px-4 py-3">Created At</th>
-              <th className="px-4 py-3">Modified At</th>
-              <th className="px-4 py-3">Email Address</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-5 py-3.5">ID</th>
+              <th className="px-5 py-3.5">Created At</th>
+              <th className="px-5 py-3.5">Modified At</th>
+              <th className="px-5 py-3.5">Email Address</th>
+              <th className="px-5 py-3.5">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -263,13 +242,13 @@ export default function WhitelistedEmailAddressesPageClient({
                 const modifiedAtLabel = formatUtc(row.modified_datetime_utc);
 
                 return (
-                  <tr key={rowId} className="border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50/80">
-                    <td className="px-4 py-4 font-mono text-xs text-zinc-500">{rowId}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-xs text-zinc-600">{createdAtLabel}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-xs text-zinc-600">
-                      {modifiedAtLabel ? modifiedAtLabel : <span className="text-zinc-400">Never modified</span>}
+                  <tr key={rowId}>
+                    <td className="px-5 py-4.5 font-mono text-xs text-slate-500">{rowId}</td>
+                    <td className="px-5 py-4.5 whitespace-nowrap text-xs text-slate-500">{createdAtLabel}</td>
+                    <td className="px-5 py-4.5 whitespace-nowrap text-xs text-slate-500">
+                      {modifiedAtLabel ? modifiedAtLabel : <span className="text-slate-400">Never modified</span>}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-5 py-4.5">
                       <input
                         value={rowDraft}
                         onChange={(event) =>
@@ -284,16 +263,16 @@ export default function WhitelistedEmailAddressesPageClient({
                             onSaveRow(rowId);
                           }
                         }}
-                        className="w-full min-w-72 rounded-md border border-zinc-300 px-3 py-2.5 text-sm font-normal text-zinc-900"
+                        className="admin-input min-w-72"
                       />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-5 py-4.5">
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => onSaveRow(rowId)}
                           disabled={rowBusy}
-                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="admin-button-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {isSavingId === rowId && isRowPending ? "Saving..." : "Save"}
                         </button>
@@ -301,7 +280,7 @@ export default function WhitelistedEmailAddressesPageClient({
                           type="button"
                           onClick={() => onDeleteRow(rowId)}
                           disabled={rowBusy}
-                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="admin-button-danger px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {isDeletingId === rowId && isRowPending ? "Deleting..." : "Delete"}
                         </button>
@@ -312,7 +291,7 @@ export default function WhitelistedEmailAddressesPageClient({
               })
             ) : (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-zinc-500">
+                <td colSpan={5} className="px-5 py-6 text-slate-500">
                   No whitelisted email addresses found.
                 </td>
               </tr>

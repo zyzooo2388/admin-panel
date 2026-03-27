@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export type HumorMixRow = {
@@ -13,7 +14,8 @@ export type HumorMixRow = {
 
 export type HumorFlavorOption = {
   id: number;
-  name: string;
+  slug: string | null;
+  description: string | null;
 };
 
 type RowFormState = {
@@ -32,34 +34,16 @@ type Props = {
   description: string;
   rows: HumorMixRow[];
   humorFlavors: HumorFlavorOption[];
+  humorFlavorsError: string | null;
   errorMessage: string | null;
   successMessage: string | null;
   emptyStateMessage?: string;
 };
 
 const NULL_LIKE_VALUES = new Set(["null", "undefined", "nan"]);
-const UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
 
 function formatUtc(value: string | null) {
-  if (!value) {
-    return "Unknown";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return `${UTC_FORMATTER.format(parsed)} UTC`;
+  return formatUtcDate(value, { emptyFallback: "Unknown", invalidFallback: "Unknown" });
 }
 
 function toFormState(row: HumorMixRow): RowFormState {
@@ -118,6 +102,7 @@ export default function HumorMixPageClient({
   description,
   rows,
   humorFlavors,
+  humorFlavorsError,
   errorMessage,
   successMessage,
   emptyStateMessage,
@@ -134,7 +119,24 @@ export default function HumorMixPageClient({
   const [globalError, setGlobalError] = useState<string | null>(errorMessage);
   const [globalSuccess, setGlobalSuccess] = useState<string | null>(successMessage);
   const validFlavorIds = useMemo(() => new Set(humorFlavors.map((flavor) => flavor.id)), [humorFlavors]);
-  const hasFlavorDropdown = humorFlavors.length > 0;
+
+  useEffect(() => {
+    if (humorFlavorsError) {
+      console.error("Failed to load humor flavor options for Humor Mix:", humorFlavorsError);
+    }
+  }, [humorFlavorsError]);
+
+  function buildFriendlySaveError(message?: string | null) {
+    const normalized = (message ?? "").toLowerCase();
+    if (
+      normalized.includes("humor_flavor_mix_humor_flavor_id_fkey") ||
+      (normalized.includes("foreign key") && normalized.includes("humor_flavor_id"))
+    ) {
+      return "Save failed because the Humor Flavor ID is not linked to an existing humor flavor.";
+    }
+
+    return message?.trim() || "Save failed due to an unexpected error.";
+  }
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -154,6 +156,19 @@ export default function HumorMixPageClient({
   }, [formsById, search, tableRows]);
 
   const resolvedEmptyStateMessage = emptyStateMessage ?? "No rows found.";
+  const flavorOptionsAvailable = humorFlavors.length > 0;
+
+  function getHumorFlavorOptionLabel(flavor: HumorFlavorOption) {
+    if (flavor.slug) {
+      return `${flavor.id} - ${flavor.slug}`;
+    }
+
+    if (flavor.description) {
+      return `${flavor.id} - ${flavor.description}`;
+    }
+
+    return String(flavor.id);
+  }
 
   async function getActorProfileId() {
     if (actorProfileIdRef.current) {
@@ -213,12 +228,14 @@ export default function HumorMixPageClient({
     const parsedCaptionCount = parseStrictInteger(captionCountRaw);
     const nextErrors: RowErrorState = {};
 
-    if (parsedHumorFlavorId === null || (hasFlavorDropdown && !validFlavorIds.has(parsedHumorFlavorId))) {
-      nextErrors.humor_flavor_id = "Humor Flavor ID must be a valid existing Humor Flavor";
+    if (parsedHumorFlavorId === null) {
+      nextErrors.humor_flavor_id = "Please select a Humor Flavor ID.";
+    } else if (!validFlavorIds.has(parsedHumorFlavorId)) {
+      nextErrors.humor_flavor_id = "Please select a valid Humor Flavor ID from the list.";
     }
 
     if (parsedCaptionCount === null) {
-      nextErrors.caption_count = "Caption Count must be a valid integer";
+      nextErrors.caption_count = "Caption Count must be a valid number.";
     }
 
     if (nextErrors.humor_flavor_id || nextErrors.caption_count) {
@@ -256,11 +273,12 @@ export default function HumorMixPageClient({
         .single();
 
       if (error) {
+        const friendlyMessage = buildFriendlySaveError(error.message);
         setErrorsById((current) => ({
           ...current,
-          [rowId]: { ...(current[rowId] ?? {}), general: `Save failed: ${error.message}` },
+          [rowId]: { ...(current[rowId] ?? {}), general: friendlyMessage },
         }));
-        setGlobalError(`Failed to update Humor Mix: ${error.message}`);
+        setGlobalError(friendlyMessage);
         return;
       }
 
@@ -279,12 +297,12 @@ export default function HumorMixPageClient({
       setErrorsById((current) => ({ ...current, [updatedRow.id]: {} }));
       setGlobalSuccess("Humor Mix record updated.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = buildFriendlySaveError(error instanceof Error ? error.message : "Unknown error");
       setErrorsById((current) => ({
         ...current,
-        [rowId]: { ...(current[rowId] ?? {}), general: `Save failed: ${message}` },
+        [rowId]: { ...(current[rowId] ?? {}), general: message },
       }));
-      setGlobalError(`Failed to update Humor Mix: ${message}`);
+      setGlobalError(message);
     } finally {
       setSavingById((current) => ({ ...current, [rowId]: false }));
     }
@@ -292,49 +310,45 @@ export default function HumorMixPageClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <h1 className="admin-page-title">{title}</h1>
+      <p className="admin-page-description">{description}</p>
 
-      {globalError ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{globalError}</p>
-      ) : null}
-      {globalSuccess ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{globalSuccess}</p>
-      ) : null}
+      {globalError ? <p className="admin-alert-danger mt-4">{globalError}</p> : null}
+      {globalSuccess ? <p className="admin-alert-success mt-4">{globalSuccess}</p> : null}
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <label className="block w-full sm:max-w-md text-xs text-zinc-600">
+      <section className="admin-toolbar-card mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <label className="block w-full sm:max-w-md text-xs text-slate-500">
           <span className="mb-1.5 block font-medium">Search</span>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by ID, created date, or field values..."
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm"
+            className="admin-input"
           />
         </label>
-        <p className="text-sm text-zinc-500">
+        <p className="admin-summary-pill">
           Showing{" "}
           {filteredRows.length} record{filteredRows.length === 1 ? "" : "s"}
         </p>
-      </div>
+      </section>
 
-      <section className="mt-5 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <section className="admin-table-wrap mt-5">
         {filteredRows.length > 0 ? (
-          <table className="min-w-full text-sm">
+          <table className="admin-table min-w-full">
             <colgroup>
               <col className="w-28" />
               <col className="w-60" />
-              <col className="w-80" />
+              <col className="w-[28rem]" />
               <col className="w-40" />
               <col className="w-36" />
             </colgroup>
-            <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+            <thead className="text-left">
               <tr>
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3">Humor Flavor ID</th>
-                <th className="px-4 py-3">Caption Count</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-5 py-3.5">ID</th>
+                <th className="px-5 py-3.5">Created</th>
+                <th className="px-5 py-3.5">Humor Flavor ID</th>
+                <th className="px-5 py-3.5">Caption Count</th>
+                <th className="px-5 py-3.5">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -346,63 +360,62 @@ export default function HumorMixPageClient({
 
                 return (
                   <Fragment key={row.id}>
-                    <tr className="border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50/80">
-                      <td className="px-4 py-3.5 font-mono text-xs text-zinc-600">{row.id}</td>
-                      <td className="px-4 py-3.5 whitespace-nowrap font-mono text-xs text-zinc-700">{formatUtc(row.created_datetime_utc)}</td>
-                      <td className="px-4 py-3.5">
-                        {hasFlavorDropdown ? (
-                          <select
-                            value={form.humor_flavor_id}
-                            onChange={(event) => setFormValue(row.id, "humor_flavor_id", event.target.value)}
-                            className="h-9 w-full min-w-64 rounded-md border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 shadow-sm"
-                            aria-label={`Humor flavor for record ${row.id}`}
-                          >
-                            <option value="">Select humor flavor</option>
-                            {humorFlavors.map((flavor) => (
-                              <option key={flavor.id} value={String(flavor.id)}>
-                                {flavor.id} - {flavor.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            value={form.humor_flavor_id}
-                            onChange={(event) => setFormValue(row.id, "humor_flavor_id", event.target.value)}
-                            className="h-9 w-full min-w-56 rounded-md border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 shadow-sm"
-                            aria-label={`Humor flavor ID for record ${row.id}`}
-                          />
-                        )}
+                    <tr>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{row.id}</td>
+                      <td className="px-5 py-3.5 whitespace-nowrap font-mono text-xs text-slate-700">{formatUtc(row.created_datetime_utc)}</td>
+                      <td className="px-5 py-3.5 min-w-[220px]">
+                        <select
+                          value={form.humor_flavor_id}
+                          onChange={(event) => setFormValue(row.id, "humor_flavor_id", event.target.value)}
+                          className="admin-input h-9 w-full min-w-[220px] overflow-visible px-4 pr-10 whitespace-nowrap"
+                          aria-label={`Humor flavor for record ${row.id}`}
+                        >
+                          <option value="">
+                            {humorFlavorsError
+                              ? "Failed to load humor flavors"
+                              : flavorOptionsAvailable
+                                ? "Select humor flavor"
+                                : "No humor flavors available"}
+                          </option>
+                          {!validFlavorIds.has(Number(form.humor_flavor_id)) && form.humor_flavor_id.trim() ? (
+                            <option value={form.humor_flavor_id}>{form.humor_flavor_id} - missing flavor</option>
+                          ) : null}
+                          {humorFlavors.map((flavor) => (
+                            <option key={flavor.id} value={String(flavor.id)}>
+                              {getHumorFlavorOptionLabel(flavor)}
+                            </option>
+                          ))}
+                        </select>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5">
                         <input
                           type="number"
                           inputMode="numeric"
                           step={1}
                           value={form.caption_count}
                           onChange={(event) => setFormValue(row.id, "caption_count", event.target.value)}
-                          className="h-9 w-full min-w-24 rounded-md border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 shadow-sm"
+                          className="admin-input h-9 min-w-24"
                           aria-label={`Caption count for record ${row.id}`}
                         />
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5">
                         <button
                           type="button"
                           onClick={() => void handleSave(row.id)}
                           disabled={isSaving}
-                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="admin-button-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {isSaving ? "Saving..." : "Save"}
                         </button>
                       </td>
                     </tr>
                     {hasRowError ? (
-                      <tr className="border-t border-zinc-100 bg-red-50/40">
-                        <td className="px-4 pb-3 pt-2 text-xs text-red-700" colSpan={5}>
+                      <tr className="bg-red-50/30">
+                        <td className="px-4 pb-3 pt-2" colSpan={5}>
                           <div className="space-y-1">
-                            {rowErrors.humor_flavor_id ? <p>Humor Flavor ID: {rowErrors.humor_flavor_id}</p> : null}
-                            {rowErrors.caption_count ? <p>Caption Count: {rowErrors.caption_count}</p> : null}
-                            {rowErrors.general ? <p>{rowErrors.general}</p> : null}
+                            {rowErrors.humor_flavor_id ? <p className="admin-alert-danger text-xs">Humor Flavor ID: {rowErrors.humor_flavor_id}</p> : null}
+                            {rowErrors.caption_count ? <p className="admin-alert-danger text-xs">Caption Count: {rowErrors.caption_count}</p> : null}
+                            {rowErrors.general ? <p className="admin-alert-danger text-xs">{rowErrors.general}</p> : null}
                           </div>
                         </td>
                       </tr>
@@ -413,7 +426,7 @@ export default function HumorMixPageClient({
             </tbody>
           </table>
         ) : (
-          <p className="px-4 py-6 text-sm text-zinc-500">{resolvedEmptyStateMessage}</p>
+          <p className="px-5 py-6 text-sm text-slate-500">{resolvedEmptyStateMessage}</p>
         )}
       </section>
     </div>

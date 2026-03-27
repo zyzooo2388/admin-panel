@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import AdminDataCell from "@/components/admin/AdminDataCell";
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
 
 type Props = {
   title: string;
@@ -20,17 +21,6 @@ type Props = {
   showStatsBar?: boolean;
   searchPlaceholder?: string;
 };
-
-const UTC_DATETIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
 
 function normalizeSearchValue(value: unknown): string {
   if (value === null || value === undefined) {
@@ -98,9 +88,9 @@ export default function AdminReadOnlyTableClient({
 
   function renderCellValue(column: string, value: unknown) {
     if (utcColumnSet.has(column)) {
-      const date = new Date(String(value ?? ""));
-      if (!Number.isNaN(date.getTime())) {
-        return `${UTC_DATETIME_FORMATTER.format(date)} UTC`;
+      const formatted = formatUtcDate(value, { emptyFallback: "", preserveInvalid: true });
+      if (formatted) {
+        return formatted;
       }
     }
 
@@ -113,45 +103,50 @@ export default function AdminReadOnlyTableClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <h1 className="admin-page-title">{title}</h1>
+      <p className="admin-page-description">{description}</p>
 
       {showStatsBar ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Total loaded</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-900">{rows.length}</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="admin-stat-card px-5 py-3.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total loaded</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">{rows.length}</p>
           </div>
-          <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Newest record ID</p>
-            <p className="mt-1 font-mono text-lg font-semibold text-zinc-900">{newestRecordId}</p>
+          <div className="admin-stat-card px-5 py-3.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Newest record ID</p>
+            <p className="mt-1 font-mono text-lg font-semibold text-slate-900">{newestRecordId}</p>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 w-full max-w-sm">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={searchPlaceholder}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-        />
-      </div>
+      <section className="admin-toolbar-card mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="admin-summary-pill">
+          Showing {filteredRows.length} of {rows.length} rows
+        </div>
+        <div className="w-full max-w-sm">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="admin-input"
+          />
+        </div>
+      </section>
 
       {rowLimit ? (
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-slate-500">
           {rows.length >= rowLimit ? `Showing first ${rowLimit} rows.` : `Showing ${rows.length} loaded rows.`}
         </p>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
+      <div className="admin-table-wrap mt-6">
+        <table className="admin-table">
           <thead
-            className={`bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500 ${stickyHeader ? "sticky top-0 z-10" : ""}`}
+            className={stickyHeader ? "sticky top-0 z-10" : ""}
           >
             <tr>
               {columns.map((column) => (
-                <th key={column} className="px-4 py-3">
+                <th key={column}>
                   {resolveColumnLabel(column)}
                 </th>
               ))}
@@ -160,7 +155,7 @@ export default function AdminReadOnlyTableClient({
           <tbody>
             {errorMessage ? (
               <tr>
-                <td className="px-4 py-4 text-red-600" colSpan={Math.max(columns.length, 1)}>
+                <td className="text-red-600" colSpan={Math.max(columns.length, 1)}>
                   {errorMessage}
                 </td>
               </tr>
@@ -170,16 +165,16 @@ export default function AdminReadOnlyTableClient({
                 const key = typeof keyValue === "string" || typeof keyValue === "number" ? String(keyValue) : `row-${index}`;
 
                 return (
-                  <tr key={key} className="border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50/80">
+                  <tr key={key}>
                     {columns.map((column) => {
                       const value = row[column];
                       const isMonospace = monospaceColumnSet.has(column);
                       const isChip = chipColumnSet.has(column);
 
                       return (
-                        <td key={`${key}-${column}`} className={`px-4 py-3.5 ${isMonospace ? "font-mono text-xs text-zinc-800" : ""}`}>
+                        <td key={`${key}-${column}`} className={isMonospace ? "font-mono text-xs text-slate-800" : ""}>
                           {isChip && value !== null && value !== undefined && String(value).length > 0 ? (
-                            <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 font-mono text-xs text-zinc-700">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-xs text-slate-700">
                               {String(value)}
                             </span>
                           ) : (
@@ -193,7 +188,7 @@ export default function AdminReadOnlyTableClient({
               })
             ) : (
               <tr>
-                <td className="px-4 py-4 text-zinc-500" colSpan={Math.max(columns.length, 1)}>
+                <td className="text-slate-500" colSpan={Math.max(columns.length, 1)}>
                   No rows found.
                 </td>
               </tr>

@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #111827;
+  --background: #f5f2ff;
+  --foreground: #0f172a;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-muted: rgba(248, 248, 255, 0.82);
+  --border: rgba(196, 181, 253, 0.36);
+  --text-muted: #6b7280;
+  --accent: #6366f1;
 }
 
 body {
@@ -13,4 +18,297 @@ body {
     Avenir,
     "Segoe UI",
     sans-serif;
+}
+
+@layer base {
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition-property: all;
+    transition-duration: 150ms;
+  }
+}
+
+@layer components {
+  .admin-shell {
+    background:
+      radial-gradient(circle at 12% 12%, rgba(224, 231, 255, 0.9) 0%, transparent 34%),
+      radial-gradient(circle at 86% 10%, rgba(243, 232, 255, 0.9) 0%, transparent 28%),
+      radial-gradient(circle at 72% 62%, rgba(216, 180, 254, 0.18) 0%, transparent 26%),
+      radial-gradient(circle at 30% 84%, rgba(167, 243, 208, 0.12) 0%, transparent 24%),
+      linear-gradient(180deg, #fbf9ff 0%, #f7f3ff 44%, #f1f4ff 100%),
+      var(--background);
+  }
+
+  .admin-shell main {
+    color: var(--foreground);
+  }
+
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea {
+    border-color: var(--border);
+    color: var(--foreground);
+    background: var(--surface);
+  }
+
+  .admin-shell input:focus,
+  .admin-shell select:focus,
+  .admin-shell textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, white);
+  }
+
+  .admin-shell table thead th {
+    color: var(--text-muted);
+  }
+
+  .admin-page-title {
+    font-size: 2rem;
+    line-height: 2.2rem;
+    letter-spacing: -0.03em;
+    font-weight: 650;
+    color: #0f172a;
+  }
+
+  .admin-page-description {
+    margin-top: 0.45rem;
+    font-size: 0.925rem;
+    line-height: 1.45;
+    color: #5f6b85;
+  }
+
+  .admin-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.65rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 247, 255, 0.82)),
+      rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.03),
+      0 16px 34px rgba(109, 40, 217, 0.1);
+  }
+
+  .admin-stat-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.45rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 245, 255, 0.8)),
+      rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.03),
+      0 16px 34px rgba(109, 40, 217, 0.1);
+  }
+
+  .admin-input {
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid rgba(199, 210, 254, 0.8);
+    background: rgba(255, 255, 255, 0.84);
+    color: #0f172a;
+    padding: 0.62rem 0.92rem;
+    font-size: 0.875rem;
+    line-height: 1.2rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      0 10px 24px rgba(129, 140, 248, 0.08);
+  }
+
+  .admin-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .admin-input:focus {
+    outline: none;
+    border-color: rgba(129, 140, 248, 0.85);
+    box-shadow:
+      0 0 0 4px rgba(129, 140, 248, 0.14),
+      0 14px 30px rgba(129, 140, 248, 0.14);
+  }
+
+  .admin-button-primary {
+    border-radius: 0.95rem;
+    border: 1px solid rgba(99, 102, 241, 0.28);
+    background: linear-gradient(135deg, #6774ff 0%, #7c5cff 100%);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 12px 28px rgba(88, 98, 235, 0.24);
+  }
+
+  .admin-button-primary:hover {
+    filter: brightness(0.97);
+  }
+
+  .admin-button-secondary {
+    border-radius: 0.9rem;
+    border: 1px solid rgba(199, 210, 254, 0.7);
+    background: rgba(255, 255, 255, 0.72);
+    color: #475569;
+    font-weight: 500;
+    box-shadow: 0 8px 20px rgba(129, 140, 248, 0.08);
+  }
+
+  .admin-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.92);
+    color: #0f172a;
+  }
+
+  .admin-button-danger {
+    border-radius: 0.9rem;
+    border: 1px solid rgba(251, 191, 194, 0.9);
+    background: linear-gradient(180deg, rgba(255, 247, 247, 0.95), rgba(255, 239, 243, 0.95));
+    color: #b4232d;
+    font-weight: 600;
+    box-shadow: 0 10px 22px rgba(244, 114, 182, 0.08);
+  }
+
+  .admin-button-danger:hover {
+    background: #ffeef0;
+  }
+
+  .admin-table-wrap {
+    overflow-x: auto;
+    border-radius: 1.65rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 247, 255, 0.84)),
+      rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.03),
+      0 18px 36px rgba(109, 40, 217, 0.1);
+  }
+
+  .admin-table {
+    min-width: 100%;
+    font-size: 0.875rem;
+    color: #334155;
+  }
+
+  .admin-table thead {
+    background: linear-gradient(180deg, rgba(244, 242, 255, 0.95), rgba(238, 242, 255, 0.82));
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: #667085;
+  }
+
+  .admin-table thead th {
+    padding: 0.88rem 1.25rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .admin-table tbody tr {
+    border-top: 1px solid rgba(224, 231, 255, 0.72);
+    vertical-align: top;
+    transition: background-color 150ms ease;
+  }
+
+  .admin-table tbody tr:hover {
+    background: rgba(248, 250, 255, 0.75);
+  }
+
+  .admin-table tbody td {
+    padding: 0.95rem 1.25rem;
+  }
+
+  .admin-alert-danger {
+    border-radius: 1.05rem;
+    border: 1px solid rgba(251, 191, 194, 0.9);
+    background: linear-gradient(180deg, rgba(255, 245, 245, 0.95), rgba(255, 238, 242, 0.95));
+    color: #b4232d;
+    padding: 0.9rem 1rem;
+    font-size: 0.875rem;
+    box-shadow: 0 14px 28px rgba(244, 114, 182, 0.07);
+  }
+
+  .admin-alert-success {
+    border-radius: 1.05rem;
+    border: 1px solid rgba(167, 243, 208, 0.9);
+    background: linear-gradient(180deg, rgba(240, 253, 247, 0.95), rgba(236, 253, 245, 0.95));
+    color: #166534;
+    padding: 0.9rem 1rem;
+    font-size: 0.875rem;
+    box-shadow: 0 14px 28px rgba(16, 185, 129, 0.07);
+  }
+
+  .admin-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(199, 210, 254, 0.7);
+    background: rgba(255, 255, 255, 0.74);
+    color: #475569;
+    padding: 0.28rem 0.72rem;
+    font-size: 0.73rem;
+    line-height: 1.1rem;
+    font-weight: 500;
+    box-shadow: 0 8px 18px rgba(129, 140, 248, 0.07);
+  }
+
+  .admin-toolbar-card {
+    border-radius: 1.4rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    background: rgba(255, 255, 255, 0.68);
+    padding: 1rem 1.1rem;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 14px 30px rgba(109, 40, 217, 0.08);
+  }
+
+  .admin-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(196, 181, 253, 0.4);
+    background: rgba(255, 255, 255, 0.72);
+    padding: 0.42rem 0.78rem;
+    font-size: 0.78rem;
+    line-height: 1.1rem;
+    color: #5b6785;
+    box-shadow: 0 10px 22px rgba(109, 40, 217, 0.06);
+  }
+
+  .admin-filter-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(199, 210, 254, 0.7);
+    background: rgba(255, 255, 255, 0.72);
+    color: #475569;
+    box-shadow: 0 8px 18px rgba(129, 140, 248, 0.06);
+  }
+
+  .admin-filter-chip-active {
+    border-color: rgba(129, 140, 248, 0.85);
+    background: linear-gradient(135deg, #6774ff 0%, #7c5cff 100%);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(88, 98, 235, 0.2);
+  }
+
+  .admin-soft-panel {
+    border-radius: 1.2rem;
+    border: 1px solid rgba(224, 231, 255, 0.9);
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .admin-mono-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(199, 210, 254, 0.65);
+    background: rgba(244, 244, 255, 0.9);
+    padding: 0.26rem 0.68rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.72rem;
+    color: #5b6180;
+  }
 }

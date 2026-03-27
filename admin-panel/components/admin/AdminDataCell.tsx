@@ -32,7 +32,7 @@ function stringifyValue(value: unknown): string {
 
 export default function AdminDataCell({ value }: AdminDataCellProps) {
   if (value === null || value === undefined) {
-    return <span className="text-zinc-400">-</span>;
+    return <span className="text-slate-400">-</span>;
   }
 
   if (typeof value === "boolean") {
@@ -49,7 +49,7 @@ export default function AdminDataCell({ value }: AdminDataCellProps) {
 
   if (looksLikeUrl) {
     return (
-      <a href={text} target="_blank" rel="noreferrer" className="block max-w-md truncate text-blue-600 hover:underline" title={text}>
+      <a href={text} target="_blank" rel="noreferrer" className="block max-w-md truncate text-indigo-600 hover:underline" title={text}>
         {text}
       </a>
     );
@@ -58,8 +58,8 @@ export default function AdminDataCell({ value }: AdminDataCellProps) {
   if (longText) {
     return (
       <details>
-        <summary className="cursor-pointer list-none text-zinc-700 hover:text-zinc-900">{formatShort(text, 120)}</summary>
-        <pre className="mt-2 max-w-2xl overflow-x-auto whitespace-pre-wrap rounded-md bg-zinc-100 p-2 text-xs text-zinc-700">{text}</pre>
+        <summary className="cursor-pointer list-none text-slate-700 hover:text-slate-900">{formatShort(text, 120)}</summary>
+        <pre className="mt-2 max-w-2xl overflow-x-auto whitespace-pre-wrap rounded-md bg-slate-100 p-2 text-xs text-slate-700">{text}</pre>
       </details>
     );
   }

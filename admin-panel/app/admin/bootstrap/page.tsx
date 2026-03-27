@@ -18,8 +18,8 @@ export default async function BootstrapPage({ searchParams }: Props) {
   if (!token) {
     return (
       <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-2xl font-semibold text-zinc-900">Admin Bootstrap</h1>
-        <p className="mt-3 text-zinc-700">Missing token. Use <code>/admin/bootstrap?token=...</code>.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">Admin Bootstrap</h1>
+        <p className="mt-3 text-slate-700">Missing token. Use <code>/admin/bootstrap?token=...</code>.</p>
       </main>
     );
   }
@@ -27,7 +27,7 @@ export default async function BootstrapPage({ searchParams }: Props) {
   if (token !== process.env.ADMIN_BOOTSTRAP_TOKEN) {
     return (
       <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-2xl font-semibold text-zinc-900">Admin Bootstrap</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Admin Bootstrap</h1>
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">Invalid bootstrap token.</p>
       </main>
     );
@@ -44,7 +44,7 @@ export default async function BootstrapPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold text-zinc-900">Admin Bootstrap</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">Admin Bootstrap</h1>
       {error ? (
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
           Failed to grant superadmin: {error.message}

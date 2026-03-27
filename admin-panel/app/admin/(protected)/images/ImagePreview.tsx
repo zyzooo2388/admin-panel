@@ -12,7 +12,7 @@ export default function ImagePreview({ src, alt }: ImagePreviewProps) {
 
   if (hasError) {
     return (
-      <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100 text-center text-[11px] font-medium text-zinc-500">
+      <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-center text-[11px] font-medium text-slate-500">
         No preview
       </div>
     );
@@ -23,7 +23,7 @@ export default function ImagePreview({ src, alt }: ImagePreviewProps) {
       src={src}
       alt={alt}
       onError={() => setHasError(true)}
-      className="h-24 w-24 rounded-lg border border-zinc-200 object-cover"
+      className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
       loading="lazy"
       referrerPolicy="no-referrer"
     />

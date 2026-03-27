@@ -2,6 +2,8 @@
 
 import { FormEvent, useMemo, useState, useTransition } from "react";
 
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
+
 import { createLlmProviderInlineAction, deleteLlmProviderInlineAction, updateLlmProviderInlineAction } from "./actions";
 
 type LlmProviderRow = {
@@ -16,17 +18,6 @@ type LlmProvidersPageClientProps = {
   initialSuccess: string | null;
 };
 
-const UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
-
 function normalizeName(value: string) {
   return value.trim();
 }
@@ -40,16 +31,7 @@ function validateName(value: string) {
 }
 
 function formatUtc(value: string | null) {
-  if (!value) {
-    return "Unknown";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return `${UTC_FORMATTER.format(parsed)} UTC`;
+  return formatUtcDate(value, { emptyFallback: "Unknown", preserveInvalid: true });
 }
 
 export default function LlmProvidersPageClient({ initialRows, initialError, initialSuccess }: LlmProvidersPageClientProps) {
@@ -161,42 +143,38 @@ export default function LlmProvidersPageClient({ initialRows, initialError, init
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">LLM Providers</h1>
-      <p className="mt-1 text-sm text-zinc-600">Manage LLM providers (CRUD).</p>
+      <h1 className="admin-page-title">LLM Providers</h1>
+      <p className="admin-page-description">Manage LLM providers (CRUD).</p>
 
-      {errorMessage ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
-      ) : null}
-      {successMessage ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>
-      ) : null}
+      {errorMessage ? <p className="admin-alert-danger mt-4">{errorMessage}</p> : null}
+      {successMessage ? <p className="admin-alert-success mt-4">{successMessage}</p> : null}
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <section className="admin-card mt-6 p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <label className="block text-xs text-zinc-600">
+          <label className="block text-xs text-slate-500">
             <span className="mb-1 block font-medium">Search</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by ID or provider name..."
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900"
+              className="admin-input"
             />
           </label>
 
           <form onSubmit={onCreateSubmit} className="flex items-end gap-2">
-            <label className="block flex-1 text-xs text-zinc-600">
+            <label className="block flex-1 text-xs text-slate-500">
               <span className="mb-1 block font-medium">New Provider Name</span>
               <input
                 value={createName}
                 onChange={(event) => setCreateName(event.target.value)}
                 placeholder="OpenAI"
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900"
+                className="admin-input"
               />
             </label>
             <button
               type="submit"
               disabled={isCreating}
-              className="inline-flex h-10 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="admin-button-primary inline-flex h-10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreating ? "Creating..." : "Create"}
             </button>
@@ -204,17 +182,19 @@ export default function LlmProvidersPageClient({ initialRows, initialError, init
         </div>
       </section>
 
-      <div className="mt-4 text-sm text-zinc-600">{summaryLabel}</div>
+      <div className="mt-4">
+        <p className="admin-summary-pill">{summaryLabel}</p>
+      </div>
 
-      <section className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+      <section className="admin-table-wrap mt-3">
+        <table className="admin-table min-w-full">
+          <thead className="text-left">
             <tr>
-              <th className="w-20 px-4 py-3">ID</th>
-              <th className="w-56 px-4 py-3">Created At</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="w-28 px-4 py-3">Edit</th>
-              <th className="w-24 px-4 py-3 text-right">Delete</th>
+              <th className="w-20 px-5 py-3.5">ID</th>
+              <th className="w-56 px-5 py-3.5">Created At</th>
+              <th className="px-5 py-3.5">Name</th>
+              <th className="w-28 px-5 py-3.5">Edit</th>
+              <th className="w-24 px-5 py-3.5 text-right">Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -225,10 +205,10 @@ export default function LlmProvidersPageClient({ initialRows, initialError, init
                 const rowBusy = isRowPending && (isSavingId === rowId || isDeletingId === rowId);
 
                 return (
-                  <tr key={rowId} className="border-t border-zinc-100 align-middle text-zinc-700 transition-colors hover:bg-zinc-50/80">
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-500">{rowId}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-600">{formatUtc(row.created_datetime_utc)}</td>
-                    <td className="px-4 py-3">
+                  <tr key={rowId} className="align-middle">
+                    <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{rowId}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500">{formatUtc(row.created_datetime_utc)}</td>
+                    <td className="px-5 py-3.5">
                       <input
                         value={rowDraft}
                         onChange={(event) =>
@@ -243,25 +223,25 @@ export default function LlmProvidersPageClient({ initialRows, initialError, init
                             onSaveRow(rowId);
                           }
                         }}
-                        className="w-full min-w-64 rounded-md border border-zinc-300 px-2.5 py-2 text-sm font-normal text-zinc-900"
+                        className="admin-input min-w-64"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <button
                         type="button"
                         onClick={() => onSaveRow(rowId)}
                         disabled={rowBusy}
-                        className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="admin-button-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSavingId === rowId && isRowPending ? "Saving..." : "Save"}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-5 py-3.5 text-right">
                       <button
                         type="button"
                         onClick={() => onDeleteRow(rowId)}
                         disabled={rowBusy}
-                        className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="admin-button-danger px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isDeletingId === rowId && isRowPending ? "Deleting..." : "Delete"}
                       </button>
@@ -271,7 +251,7 @@ export default function LlmProvidersPageClient({ initialRows, initialError, init
               })
             ) : (
               <tr>
-                <td className="px-4 py-6 text-sm text-zinc-500" colSpan={5}>
+                <td className="px-5 py-6 text-sm text-slate-500" colSpan={5}>
                   {emptyMessage}
                 </td>
               </tr>

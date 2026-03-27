@@ -84,7 +84,7 @@ function FieldInput({
         name={name}
         defaultValue={value === null || value === undefined ? "" : String(value)}
         required={required}
-        className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs"
+        className="admin-input text-xs"
       >
         <option value="">Select an option</option>
         {options.map((option) => (
@@ -103,7 +103,7 @@ function FieldInput({
         name={name}
         defaultValue={stringValue}
         required={required}
-        className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs"
+        className="admin-input text-xs"
       >
         <option value="">null</option>
         <option value="true">true</option>
@@ -119,7 +119,7 @@ function FieldInput({
         defaultValue={toInputValue(value, kind)}
         required={required}
         rows={3}
-        className={`w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs ${kind === "json" ? "font-mono" : ""}`}
+        className={`admin-input text-xs ${kind === "json" ? "font-mono" : ""}`}
       />
     );
   }
@@ -131,7 +131,7 @@ function FieldInput({
       type={kind === "number" ? "number" : "text"}
       step={kind === "number" ? "any" : undefined}
       required={required}
-      className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs"
+      className="admin-input text-xs"
     />
   );
 }
@@ -278,28 +278,33 @@ export default function AdminCrudTableClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <h1 className="admin-page-title">{title}</h1>
+      <p className="admin-page-description">{description}</p>
 
       {parseMessageQuery(errorMessage, null) ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
+        <p className="admin-alert-danger mt-4">{errorMessage}</p>
       ) : null}
       {parseMessageQuery(successMessage, null) ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>
+        <p className="admin-alert-success mt-4">{successMessage}</p>
       ) : null}
 
-      <div className="mt-4 w-full max-w-sm">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search rows..."
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-        />
-      </div>
+      <section className="admin-toolbar-card mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="admin-summary-pill">
+          Showing {filteredRows.length} of {rows.length} rows
+        </div>
+        <div className="w-full max-w-sm">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search rows..."
+            className="admin-input"
+          />
+        </div>
+      </section>
 
       {canCreate ? (
-        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Create record</h2>
+        <section className="admin-card mt-6 p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Create record</h2>
           <form action={createAction} onSubmit={handleCreateSubmit} className="mt-4 space-y-3">
             <input type="hidden" name="resource_key" value={resourceKey} />
             <input type="hidden" name="redirect_path" value={redirectPath} />
@@ -308,12 +313,12 @@ export default function AdminCrudTableClient({
             <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
             {createValidationError ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{createValidationError}</p>
+              <p className="admin-alert-danger">{createValidationError}</p>
             ) : null}
 
             <div className="grid gap-3 md:grid-cols-2">
               {editableColumns.map((column) => (
-                <label key={`create-${column}`} className="block text-xs text-zinc-600">
+                <label key={`create-${column}`} className="block text-xs text-slate-500">
                   <span className="mb-1 block font-medium">
                     {resolveColumnLabel(column)}
                     {requiredColumnSet.has(column) ? " *" : ""}
@@ -331,7 +336,7 @@ export default function AdminCrudTableClient({
 
             <button
               type="submit"
-              className="inline-flex rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+              className="admin-button-primary inline-flex px-4 py-2 text-sm"
             >
               Create
             </button>
@@ -340,22 +345,22 @@ export default function AdminCrudTableClient({
       ) : null}
 
       {editableColumns.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-5 py-3.5 text-sm text-amber-800 shadow-[0_12px_24px_rgba(245,158,11,0.08)]">
           TODO: No editable columns could be detected from current table access. Add columns to resource config if needed.
         </p>
       ) : null}
 
-      <section className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+      <section className="admin-table-wrap mt-6">
+        <table className="admin-table">
+          <thead>
             <tr>
               {displayColumns.map((column) => (
-                <th key={`head-${column}`} className="px-4 py-3">
+                <th key={`head-${column}`}>
                   {resolveColumnLabel(column)}
                 </th>
               ))}
-              {canUpdate ? <th className="px-4 py-3">{updateHeaderLabel}</th> : null}
-              {canDelete ? <th className="px-4 py-3">Delete</th> : null}
+              {canUpdate ? <th>{updateHeaderLabel}</th> : null}
+              {canDelete ? <th>Delete</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -366,15 +371,15 @@ export default function AdminCrudTableClient({
                 const key = rowId || `row-${index}`;
 
                 return (
-                  <tr key={key} className="border-t border-zinc-100 align-top text-zinc-700">
+                  <tr key={key}>
                     {displayColumns.map((column) => (
-                      <td key={`${key}-${column}`} className="px-4 py-3">
+                      <td key={`${key}-${column}`}>
                         <AdminDataCell value={row[column]} />
                       </td>
                     ))}
 
                     {canUpdate ? (
-                      <td className="px-4 py-3">
+                      <td>
                         {rowId ? (
                           <form action={updateAction} onSubmit={(event) => handleEditSubmit(rowId, event)} className="space-y-2">
                             <input type="hidden" name="resource_key" value={resourceKey} />
@@ -386,13 +391,13 @@ export default function AdminCrudTableClient({
                             <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
                             {editValidationErrors[rowId] ? (
-                              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                              <p className="admin-alert-danger">
                                 {editValidationErrors[rowId]}
                               </p>
                             ) : null}
 
                             {editableColumns.map((column) => (
-                              <label key={`${key}-edit-${column}`} className="block text-xs text-zinc-600">
+                              <label key={`${key}-edit-${column}`} className="block text-xs text-slate-500">
                                 <span className="mb-1 block font-medium">
                                   {resolveColumnLabel(column)}
                                   {requiredColumnSet.has(column) ? " *" : ""}
@@ -409,19 +414,19 @@ export default function AdminCrudTableClient({
 
                             <button
                               type="submit"
-                              className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                              className="admin-button-secondary px-3 py-1.5 text-xs"
                             >
                               Save
                             </button>
                           </form>
                         ) : (
-                          <span className="text-xs text-zinc-400">Missing ID</span>
+                          <span className="text-xs text-slate-400">Missing ID</span>
                         )}
                       </td>
                     ) : null}
 
                     {canDelete ? (
-                      <td className="px-4 py-3">
+                      <td>
                         {rowId ? (
                           <form
                             action={deleteAction}
@@ -437,13 +442,13 @@ export default function AdminCrudTableClient({
                             <input type="hidden" name="id_column" value={idColumn ?? "id"} />
                             <button
                               type="submit"
-                              className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                              className="admin-button-danger px-3 py-1.5 text-xs"
                             >
                               Delete
                             </button>
                           </form>
                         ) : (
-                          <span className="text-xs text-zinc-400">Missing ID</span>
+                          <span className="text-xs text-slate-400">Missing ID</span>
                         )}
                       </td>
                     ) : null}
@@ -452,7 +457,7 @@ export default function AdminCrudTableClient({
               })
             ) : (
               <tr>
-                <td className="px-4 py-4 text-zinc-500" colSpan={displayColumns.length + (canUpdate ? 1 : 0) + (canDelete ? 1 : 0)}>
+                <td className="text-slate-500" colSpan={displayColumns.length + (canUpdate ? 1 : 0) + (canDelete ? 1 : 0)}>
                   {resolvedEmptyStateMessage}
                 </td>
               </tr>

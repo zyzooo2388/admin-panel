@@ -27,7 +27,7 @@ export default function AccessDeniedSignOutButton() {
       type="button"
       onClick={handleSignOut}
       disabled={isLoading}
-      className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {isLoading ? "Signing out..." : "Sign out and try another account"}
     </button>

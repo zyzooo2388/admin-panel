@@ -4,6 +4,7 @@ import { Fragment, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type { ColumnKind } from "@/lib/admin/resourceData";
 import type { AdminResourceMode } from "@/lib/admin/resources";
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Props = {
@@ -23,17 +24,6 @@ type Props = {
   requiredColumns?: string[];
   termTypeLabels?: Record<string, string>;
 };
-
-const UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
 
 function dedupeColumns(columns: string[]) {
   return [...new Set(columns.filter(Boolean))];
@@ -87,16 +77,7 @@ function formatPreview(value: unknown, maxLength: number) {
 }
 
 function formatUtc(value: unknown) {
-  if (value === null || value === undefined || String(value).trim().length === 0) {
-    return "Never updated";
-  }
-
-  const parsed = new Date(String(value));
-  if (Number.isNaN(parsed.getTime())) {
-    return String(value);
-  }
-
-  return `${UTC_FORMATTER.format(parsed)} UTC`;
+  return formatUtcDate(value, { emptyFallback: "Never updated", preserveInvalid: true });
 }
 
 function toPriorityValue(value: unknown): number | null {
@@ -110,7 +91,7 @@ function toPriorityValue(value: unknown): number | null {
 
 function priorityBadgeClass(priority: number | null) {
   if (priority === null) {
-    return "border-zinc-200 bg-zinc-100 text-zinc-600";
+    return "border-slate-200 bg-slate-100 text-slate-500";
   }
 
   if (priority >= 8) {
@@ -188,7 +169,7 @@ function FieldInput({
         name={name}
         defaultValue={stringValue}
         required={required}
-        className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs"
+        className="admin-input text-xs"
       >
         <option value="">null</option>
         <option value="true">true</option>
@@ -204,7 +185,7 @@ function FieldInput({
         defaultValue={toInputValue(value, kind)}
         required={required}
         rows={rows ?? 3}
-        className={`w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs ${kind === "json" ? "font-mono" : ""}`}
+        className={`admin-input text-xs ${kind === "json" ? "font-mono" : ""}`}
       />
     );
   }
@@ -216,7 +197,7 @@ function FieldInput({
       type={kind === "number" ? "number" : "text"}
       step={kind === "number" ? "any" : undefined}
       required={required}
-      className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs"
+      className="admin-input text-xs"
     />
   );
 }
@@ -475,28 +456,28 @@ export default function TermsCrudTableClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <h1 className="admin-page-title">{title}</h1>
+      <p className="admin-page-description">{description}</p>
 
-      {globalError ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{globalError}</p> : null}
+      {globalError ? <p className="admin-alert-danger mt-4">{globalError}</p> : null}
       {globalSuccess ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{globalSuccess}</p>
+        <p className="admin-alert-success mt-4">{globalSuccess}</p>
       ) : null}
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <label className="block text-xs text-zinc-600">
-          <span className="mb-2 block font-medium text-zinc-800">Search</span>
+      <section className="admin-card mt-6 p-5">
+        <label className="block text-xs text-slate-500">
+          <span className="mb-2 block font-medium text-slate-800">Search</span>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search term, definition, example, or ID..."
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+            className="admin-input"
           />
         </label>
       </section>
 
       {canCreate ? (
-        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <section className="admin-card mt-4 p-5">
           <form ref={createFormRef} onSubmit={handleCreateSubmit} className="space-y-4">
             <input type="hidden" name="resource_key" value={resourceKey} />
             <input type="hidden" name="redirect_path" value={redirectPath} />
@@ -505,8 +486,8 @@ export default function TermsCrudTableClient({
             <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
             <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-zinc-900">Create term</h2>
-              <p className="text-xs text-zinc-500">Add a new term entry. New records appear at the top of the table immediately after create.</p>
+              <h2 className="text-sm font-semibold text-slate-900">Create term</h2>
+              <p className="text-xs text-slate-500">Add a new term entry. New records appear at the top of the table immediately after create.</p>
             </div>
 
             {createValidationError ? (
@@ -517,8 +498,8 @@ export default function TermsCrudTableClient({
               {createColumns
                 .filter((column) => column === "term")
                 .map((column) => (
-                  <label key={`create-${column}`} className="block text-xs text-zinc-600">
-                    <span className="mb-1.5 block font-medium text-zinc-800">
+                  <label key={`create-${column}`} className="block text-xs text-slate-500">
+                    <span className="mb-1.5 block font-medium text-slate-800">
                       {humanizeColumnLabel(column)}
                       {requiredColumnSet.has(column) ? " *" : ""}
                     </span>
@@ -530,8 +511,8 @@ export default function TermsCrudTableClient({
                 {createColumns
                   .filter((column) => column !== "term")
                   .map((column) => (
-                    <label key={`create-${column}`} className="block text-xs text-zinc-600">
-                      <span className="mb-1.5 block font-medium text-zinc-800">
+                    <label key={`create-${column}`} className="block text-xs text-slate-500">
+                      <span className="mb-1.5 block font-medium text-slate-800">
                         {humanizeColumnLabel(column)}
                         {requiredColumnSet.has(column) ? " *" : ""}
                       </span>
@@ -551,7 +532,7 @@ export default function TermsCrudTableClient({
               <button
                 type="submit"
                 disabled={isCreating}
-                className="inline-flex min-w-24 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                className="admin-button-primary inline-flex min-w-24 items-center justify-center px-4 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreating ? "Creating..." : "Create"}
               </button>
@@ -560,22 +541,24 @@ export default function TermsCrudTableClient({
         </section>
       ) : null}
 
-      <div className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-700">
+      <div className="mt-4">
+        <p className="admin-summary-pill">
         Showing {filteredRows.length} of {totalRowsCount} term{totalRowsCount === 1 ? "" : "s"}
+        </p>
       </div>
 
-      <section className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full table-fixed text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+      <section className="admin-table-wrap mt-3">
+        <table className="admin-table min-w-full table-fixed">
+          <thead>
             <tr>
-              <th className="w-[16rem] px-4 py-3">Term</th>
-              <th className="w-[24rem] px-4 py-3">Definition</th>
-              <th className="w-[20rem] px-4 py-3">Example</th>
-              <th className="w-24 px-4 py-3">Priority</th>
-              <th className="w-28 px-4 py-3">Type</th>
-              <th className="w-52 px-4 py-3">Updated</th>
-              <th className="w-20 px-4 py-3">ID</th>
-              <th className="w-40 px-4 py-3">Actions</th>
+              <th className="w-[16rem]">Term</th>
+              <th className="w-[24rem]">Definition</th>
+              <th className="w-[20rem]">Example</th>
+              <th className="w-24">Priority</th>
+              <th className="w-28">Type</th>
+              <th className="w-52">Updated</th>
+              <th className="w-20">ID</th>
+              <th className="w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -589,40 +572,40 @@ export default function TermsCrudTableClient({
 
                 return (
                   <Fragment key={key}>
-                    <tr className="border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50">
-                      <td className="px-4 py-4">
-                        <p className="max-w-[15rem] break-words text-base font-semibold leading-5 text-zinc-900" title={stringifyValue(row.term) || "-"}>
+                    <tr>
+                      <td className="px-5 py-4.5">
+                        <p className="max-w-[15rem] break-words text-base font-semibold leading-5 text-slate-900" title={stringifyValue(row.term) || "-"}>
                           {stringifyValue(row.term) || "-"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="max-w-[23rem] whitespace-normal break-words leading-5 text-zinc-700" title={stringifyValue(row.definition) || ""}>
+                      <td className="px-5 py-4.5">
+                        <p className="max-w-[23rem] whitespace-normal break-words leading-5 text-slate-700" title={stringifyValue(row.definition) || ""}>
                           {formatPreview(row.definition, 320)}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="max-w-[19rem] whitespace-normal break-words leading-5 text-zinc-700" title={stringifyValue(row.example) || ""}>
+                      <td className="px-5 py-4.5">
+                        <p className="max-w-[19rem] whitespace-normal break-words leading-5 text-slate-700" title={stringifyValue(row.example) || ""}>
                           {formatPreview(row.example, 220)}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${priorityBadgeClass(priority)}`}>
+                      <td className="px-5 py-4.5">
+                        <span className={`admin-badge px-2 py-1 text-xs font-semibold ${priorityBadgeClass(priority)}`}>
                           {priority === null ? "-" : priority}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-xs text-zinc-700">
-                        <span className="inline-flex rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1">{resolveTypeLabel(row.term_type_id)}</span>
+                      <td className="px-5 py-4.5 text-xs text-slate-700">
+                        <span className="admin-badge rounded-xl">{resolveTypeLabel(row.term_type_id)}</span>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-xs text-zinc-600">{formatUtc(row.modified_datetime_utc)}</td>
-                      <td className="px-4 py-4 font-mono text-xs text-zinc-400">{rowId || "-"}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5 whitespace-nowrap text-xs text-slate-500">{formatUtc(row.modified_datetime_utc)}</td>
+                      <td className="px-5 py-4.5 font-mono text-xs text-slate-400">{rowId || "-"}</td>
+                      <td className="px-5 py-4.5">
                         {rowId ? (
                           <div className="flex items-center gap-2">
                             {canUpdate ? (
                               <button
                                 type="button"
                                 onClick={() => setEditingRowId((current) => (current === rowId ? null : rowId))}
-                                className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                                className="admin-button-secondary px-3 py-1.5 text-xs"
                               >
                                 {rowIsEditing ? "Close" : "Edit"}
                               </button>
@@ -640,22 +623,22 @@ export default function TermsCrudTableClient({
                                 <input type="hidden" name="redirect_path" value={redirectPath} />
                                 <input type="hidden" name="row_id" value={rowId} />
                                 <input type="hidden" name="id_column" value={idColumn ?? "id"} />
-                                <button type="submit" className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50">
+                                <button type="submit" className="admin-button-danger px-3 py-1.5 text-xs">
                                   Delete
                                 </button>
                               </form>
                             ) : null}
                           </div>
                         ) : (
-                          <span className="text-xs text-zinc-400">Missing ID</span>
+                          <span className="text-xs text-slate-400">Missing ID</span>
                         )}
                       </td>
                     </tr>
 
                     {rowIsEditing && canUpdate ? (
-                      <tr className="border-t border-zinc-100 bg-zinc-50/70">
-                        <td colSpan={8} className="px-4 py-4">
-                          <form action={updateAction} onSubmit={(event) => handleEditSubmit(rowId, event)} className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3">
+                      <tr className="bg-white/45">
+                        <td colSpan={8} className="px-5 py-4.5">
+                          <form action={updateAction} onSubmit={(event) => handleEditSubmit(rowId, event)} className="admin-soft-panel space-y-3 p-4">
                             <input type="hidden" name="resource_key" value={resourceKey} />
                             <input type="hidden" name="redirect_path" value={redirectPath} />
                             <input type="hidden" name="row_id" value={rowId} />
@@ -665,12 +648,12 @@ export default function TermsCrudTableClient({
                             <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
                             {editValidationErrors[rowId] ? (
-                              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{editValidationErrors[rowId]}</p>
+                              <p className="admin-alert-danger text-xs">{editValidationErrors[rowId]}</p>
                             ) : null}
 
                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                               {editableColumns.map((column) => (
-                                <label key={`${key}-edit-${column}`} className="block text-xs text-zinc-600">
+                                <label key={`${key}-edit-${column}`} className="block text-xs text-slate-500">
                                   <span className="mb-1 block font-medium">
                                     {humanizeColumnLabel(column)}
                                     {requiredColumnSet.has(column) ? " *" : ""}
@@ -687,13 +670,13 @@ export default function TermsCrudTableClient({
                             </div>
 
                             <div className="flex gap-2">
-                              <button type="submit" className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100">
+                              <button type="submit" className="admin-button-secondary px-3 py-1.5 text-xs">
                                 Save
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingRowId(null)}
-                                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100"
+                                className="admin-button-secondary px-3 py-1.5 text-xs text-slate-500"
                               >
                                 Cancel
                               </button>
@@ -707,7 +690,7 @@ export default function TermsCrudTableClient({
               })
             ) : (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-sm text-zinc-500">
+                <td colSpan={8} className="px-5 py-6 text-sm text-slate-500">
                   No terms found.
                 </td>
               </tr>

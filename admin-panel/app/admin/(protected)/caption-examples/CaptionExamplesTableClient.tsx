@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState, type CSSProperties, type FormEvent } from 
 
 import type { ColumnKind } from "@/lib/admin/resourceData";
 import type { AdminResourceMode } from "@/lib/admin/resources";
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
 
 type CaptionExampleRow = {
   id: string | null;
@@ -37,16 +38,6 @@ type Props = {
   createFieldDefaults?: Record<string, unknown>;
 };
 
-const UTC_DATETIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
 const REQUIRED_LAYOUT_FIELDS = ["caption", "image_description", "explanation", "priority", "image_id"] as const;
 
 function isUuid(value: string) {
@@ -67,16 +58,7 @@ function resolvePriority(value: unknown): number | null {
 }
 
 function formatUtc(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return `${UTC_DATETIME_FORMATTER.format(parsed)} UTC`;
+  return formatUtcDate(value, { includeSeconds: false });
 }
 
 function formatUpdatedUtc(value: string | null): string {
@@ -147,7 +129,7 @@ function toFieldValue(value: unknown): string {
 
 function FieldLabel({ label, required }: { label: string; required: boolean }) {
   return (
-    <span className="mb-1.5 block text-xs font-medium text-zinc-700">
+    <span className="mb-1.5 block text-xs font-medium text-slate-700">
       {label}
       {required ? <span className="ml-1 text-red-600">*</span> : null}
     </span>
@@ -307,32 +289,32 @@ export default function CaptionExamplesTableClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <h1 className="admin-page-title">{title}</h1>
+      <p className="admin-page-description">{description}</p>
 
-      {errorMessage ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p> : null}
-      {successMessage ? <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p> : null}
+      {errorMessage ? <p className="admin-alert-danger mt-4">{errorMessage}</p> : null}
+      {successMessage ? <p className="admin-alert-success mt-4">{successMessage}</p> : null}
 
-      <section className="mt-5 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      <section className="admin-toolbar-card mt-5 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Search</h2>
-            <p className="mt-1 text-xs text-zinc-500">Search by caption, image description, explanation, ID, or image ID.</p>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Search</h2>
+            <p className="mt-1 text-xs text-slate-500">Search by caption, image description, explanation, ID, or image ID.</p>
           </div>
           <div className="w-full max-w-md">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search caption examples..."
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm"
+              className="admin-input"
             />
           </div>
         </div>
       </section>
 
       {canCreate ? (
-        <section className="mt-5 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Create caption example</h2>
+        <section className="admin-card mt-5 p-4 sm:p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Create caption example</h2>
           <form action={createAction} onSubmit={handleCreateSubmit} className="mt-4 space-y-4">
             <input type="hidden" name="resource_key" value={resourceKey} />
             <input type="hidden" name="redirect_path" value={redirectPath} />
@@ -341,7 +323,7 @@ export default function CaptionExamplesTableClient({
             <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
             {createValidationError ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{createValidationError}</p>
+              <p className="admin-alert-danger text-sm">{createValidationError}</p>
             ) : null}
 
             {editableColumnSet.has("caption") ? (
@@ -352,7 +334,7 @@ export default function CaptionExamplesTableClient({
                   defaultValue={toFieldValue(createFieldDefaults?.caption)}
                   required={requiredColumnSet.has("caption")}
                   rows={2}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  className="admin-input"
                 />
               </label>
             ) : null}
@@ -366,7 +348,7 @@ export default function CaptionExamplesTableClient({
                     defaultValue={toFieldValue(createFieldDefaults?.image_description)}
                     required={requiredColumnSet.has("image_description")}
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    className="admin-input"
                   />
                 </label>
               ) : null}
@@ -379,7 +361,7 @@ export default function CaptionExamplesTableClient({
                     defaultValue={toFieldValue(createFieldDefaults?.explanation)}
                     required={requiredColumnSet.has("explanation")}
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    className="admin-input"
                   />
                 </label>
               ) : null}
@@ -395,7 +377,7 @@ export default function CaptionExamplesTableClient({
                     step={1}
                     defaultValue={toFieldValue(createFieldDefaults?.priority)}
                     required={requiredColumnSet.has("priority")}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    className="admin-input"
                   />
                 </label>
               ) : null}
@@ -408,14 +390,14 @@ export default function CaptionExamplesTableClient({
                     type="text"
                     defaultValue={toFieldValue(createFieldDefaults?.image_id)}
                     required={requiredColumnSet.has("image_id")}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-mono"
+                    className="admin-input font-mono"
                   />
                 </label>
               ) : null}
             </div>
 
             <div className="flex justify-end pt-1">
-              <button type="submit" className="inline-flex rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700">
+              <button type="submit" className="admin-button-primary inline-flex px-4 py-2 text-sm">
                 Create
               </button>
             </div>
@@ -424,17 +406,17 @@ export default function CaptionExamplesTableClient({
       ) : null}
 
       {editableColumns.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/90 px-5 py-3.5 text-sm text-amber-800 shadow-[0_12px_24px_rgba(245,158,11,0.08)]">
           TODO: No editable columns could be detected from current table access. Add columns to resource config if needed.
         </p>
       ) : null}
 
       <div className="mt-5 flex items-center justify-between">
-        <p className="text-sm font-medium text-zinc-700">{summary}</p>
+        <p className="admin-summary-pill">{summary}</p>
       </div>
 
-      <section className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full table-fixed text-sm">
+      <section className="admin-table-wrap mt-3">
+        <table className="admin-table min-w-full table-fixed">
           <colgroup>
             <col className="w-[22%]" />
             <col className="w-[20%]" />
@@ -446,17 +428,17 @@ export default function CaptionExamplesTableClient({
             <col className="w-32" />
             <col className="w-32" />
           </colgroup>
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+          <thead className="text-left">
             <tr>
-              <th className="px-4 py-3">Caption</th>
-              <th className="px-4 py-3">Image Description</th>
-              <th className="px-4 py-3">Explanation</th>
-              <th className="px-4 py-3">Priority</th>
-              <th className="px-4 py-3">Image ID</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Updated</th>
-              <th className="px-4 py-3">ID</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-5 py-3.5">Caption</th>
+              <th className="px-5 py-3.5">Image Description</th>
+              <th className="px-5 py-3.5">Explanation</th>
+              <th className="px-5 py-3.5">Priority</th>
+              <th className="px-5 py-3.5">Image ID</th>
+              <th className="px-5 py-3.5">Created</th>
+              <th className="px-5 py-3.5">Updated</th>
+              <th className="px-5 py-3.5">ID</th>
+              <th className="px-5 py-3.5">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -469,30 +451,30 @@ export default function CaptionExamplesTableClient({
 
                 return (
                   <Fragment key={key}>
-                    <tr className="border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50/90">
-                      <td className="px-4 py-4">
-                        <p className={row.caption ? "leading-6 text-zinc-900" : "leading-6 text-zinc-400"} style={lineClampStyle(2)} title={row.caption ?? "None"}>
+                    <tr className="border-t border-slate-100 align-top text-slate-700 transition-all duration-150 hover:bg-slate-50/90">
+                      <td className="px-5 py-4.5">
+                        <p className={row.caption ? "leading-6 text-slate-900" : "leading-6 text-slate-400"} style={lineClampStyle(2)} title={row.caption ?? "None"}>
                           {row.caption?.trim() || "None"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         <p
-                          className={row.image_description ? "leading-6 text-zinc-700" : "leading-6 text-zinc-400"}
+                          className={row.image_description ? "leading-6 text-slate-700" : "leading-6 text-slate-400"}
                           style={lineClampStyle(2)}
                           title={row.image_description ?? "None"}
                         >
                           {row.image_description?.trim() || "None"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className={row.explanation ? "leading-6 text-zinc-700" : "leading-6 text-zinc-400"} style={lineClampStyle(2)} title={row.explanation ?? "None"}>
+                      <td className="px-5 py-4.5">
+                        <p className={row.explanation ? "leading-6 text-slate-700" : "leading-6 text-slate-400"} style={lineClampStyle(2)} title={row.explanation ?? "None"}>
                           {row.explanation?.trim() || "None"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {priority !== null ? (
                           <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                            className={`admin-badge text-xs font-semibold ${
                               priority >= 8
                                 ? "border-rose-200 bg-rose-50 text-rose-700"
                                 : priority >= 4
@@ -503,27 +485,27 @@ export default function CaptionExamplesTableClient({
                             {priority}
                           </span>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4" title={row.image_id ?? "—"}>
-                        <span className={`font-mono text-xs ${row.image_id === null || row.image_id === undefined ? "text-zinc-400" : "text-zinc-500"}`}>
+                      <td className="px-5 py-4.5" title={row.image_id ?? "—"}>
+                        <span className={`font-mono text-xs ${row.image_id === null || row.image_id === undefined ? "text-slate-400" : "text-slate-500"}`}>
                           {shortUuid(row.image_id)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-xs text-zinc-500">{formatUtc(row.created_datetime_utc)}</td>
-                      <td className="px-4 py-4 text-xs text-zinc-500">{formatUpdatedUtc(row.modified_datetime_utc)}</td>
-                      <td className="px-4 py-4 font-mono text-xs text-zinc-400" title={row.id ?? "None"}>
+                      <td className="px-5 py-4.5 text-xs text-slate-500">{formatUtc(row.created_datetime_utc)}</td>
+                      <td className="px-5 py-4.5 text-xs text-slate-500">{formatUpdatedUtc(row.modified_datetime_utc)}</td>
+                      <td className="px-5 py-4.5 font-mono text-xs text-slate-400" title={row.id ?? "None"}>
                         {shortUuid(row.id)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {rowId ? (
                           <div className="flex items-center gap-2">
                             {canUpdate ? (
                               <button
                                 type="button"
                                 onClick={() => toggleExpanded(key)}
-                                className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                                className="admin-button-secondary px-3 py-1.5 text-xs"
                               >
                                 {isExpanded ? "Cancel" : "Edit"}
                               </button>
@@ -543,7 +525,7 @@ export default function CaptionExamplesTableClient({
                                 <input type="hidden" name="id_column" value={idColumn ?? "id"} />
                                 <button
                                   type="submit"
-                                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                                  className="admin-button-danger px-3 py-1.5 text-xs"
                                 >
                                   Delete
                                 </button>
@@ -551,13 +533,13 @@ export default function CaptionExamplesTableClient({
                             ) : null}
                           </div>
                         ) : (
-                          <span className="text-xs text-zinc-400">Missing ID</span>
+                          <span className="text-xs text-slate-400">Missing ID</span>
                         )}
                       </td>
                     </tr>
                     {isExpanded && canUpdate ? (
-                      <tr className="border-t border-zinc-100 bg-zinc-50/70">
-                        <td colSpan={9} className="px-4 py-4">
+                      <tr className="bg-white/45">
+                        <td colSpan={9} className="px-5 py-4.5">
                           {rowId ? (
                             <form action={updateAction} onSubmit={(event) => handleEditSubmit(rowId, event)} className="space-y-4">
                               <input type="hidden" name="resource_key" value={resourceKey} />
@@ -569,7 +551,7 @@ export default function CaptionExamplesTableClient({
                               <input type="hidden" name="required_columns" value={requiredColumnsJson} />
 
                               {editValidationErrors[rowId] ? (
-                                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{editValidationErrors[rowId]}</p>
+                                <p className="admin-alert-danger text-sm">{editValidationErrors[rowId]}</p>
                               ) : null}
 
                               <div className="grid gap-3 lg:grid-cols-2">
@@ -587,7 +569,7 @@ export default function CaptionExamplesTableClient({
                                           defaultValue={toFieldValue(value)}
                                           required={isRequired}
                                           rows={column === "caption" ? 2 : 3}
-                                          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                                          className="admin-input"
                                         />
                                       </label>
                                     );
@@ -602,7 +584,7 @@ export default function CaptionExamplesTableClient({
                                         step={kind === "number" ? "any" : undefined}
                                         defaultValue={toFieldValue(value)}
                                         required={isRequired}
-                                        className={`w-full rounded-md border border-zinc-300 px-3 py-2 text-sm ${column.endsWith("_id") ? "font-mono" : ""}`}
+                                        className={`admin-input ${column.endsWith("_id") ? "font-mono" : ""}`}
                                       />
                                     </label>
                                   );
@@ -612,14 +594,14 @@ export default function CaptionExamplesTableClient({
                               <div className="flex justify-end">
                                 <button
                                   type="submit"
-                                  className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
+                                  className="admin-button-secondary px-3 py-1.5 text-xs"
                                 >
                                   Save
                                 </button>
                               </div>
                             </form>
                           ) : (
-                            <span className="text-xs text-zinc-400">Missing ID</span>
+                            <span className="text-xs text-slate-400">Missing ID</span>
                           )}
                         </td>
                       </tr>
@@ -629,7 +611,7 @@ export default function CaptionExamplesTableClient({
               })
             ) : (
               <tr>
-                <td className="px-4 py-8 text-center text-zinc-500" colSpan={9}>
+                <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>
                   {query.trim().length > 0 ? "No caption examples match your search." : "No caption examples found."}
                 </td>
               </tr>
@@ -639,7 +621,7 @@ export default function CaptionExamplesTableClient({
       </section>
 
       {displayColumns.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3.5 text-sm text-amber-800">
           No display columns were detected.
         </p>
       ) : null}

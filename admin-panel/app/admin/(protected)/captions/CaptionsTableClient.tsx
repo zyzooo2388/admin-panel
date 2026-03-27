@@ -2,6 +2,9 @@
 
 import { Fragment, useMemo, useState } from "react";
 
+import CopyButton from "@/components/admin/CopyButton";
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
+
 export type CaptionRow = {
   id: string | null;
   created_datetime_utc: string | null;
@@ -24,30 +27,13 @@ type Props = {
   humorFlavorMap: Record<string, string>;
 };
 
-const UTC_DATETIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  year: "numeric",
-  month: "short",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
+type QuickFilterKey = "all" | "public" | "featured" | "high-like" | "recent" | "no-flavor";
 
 const CAPTION_PREVIEW_LENGTH = 260;
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function formatUtcDatetime(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return `${UTC_DATETIME_FORMATTER.format(date)} UTC`;
+  return formatUtcDate(value);
 }
 
 function previewCaption(content: string | null): string {
@@ -94,17 +80,76 @@ function normalizeSearch(value: string | number | null): string {
   return String(value).toLowerCase();
 }
 
+function isRecentCaption(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  return Date.now() - parsed.getTime() <= ONE_WEEK_MS;
+}
+
+function rowMatchesQuickFilter(row: CaptionRow, filter: QuickFilterKey): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "public") {
+    return row.is_public === true;
+  }
+
+  if (filter === "featured") {
+    return row.is_featured === true;
+  }
+
+  if (filter === "high-like") {
+    return (toFiniteNumber(row.like_count) ?? 0) >= 10;
+  }
+
+  if (filter === "recent") {
+    return isRecentCaption(row.created_datetime_utc);
+  }
+
+  if (filter === "no-flavor") {
+    return !row.humor_flavor_id;
+  }
+
+  return true;
+}
+
 export default function CaptionsTableClient({ rows, errorMessage, totalCount, humorFlavorMap }: Props) {
   const [query, setQuery] = useState("");
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
+  const [quickFilter, setQuickFilter] = useState<QuickFilterKey>("all");
+
+  const quickFilterCounts = useMemo(
+    () => ({
+      all: rows.length,
+      public: rows.filter((row) => row.is_public === true).length,
+      featured: rows.filter((row) => row.is_featured === true).length,
+      "high-like": rows.filter((row) => (toFiniteNumber(row.like_count) ?? 0) >= 10).length,
+      recent: rows.filter((row) => isRecentCaption(row.created_datetime_utc)).length,
+      "no-flavor": rows.filter((row) => !row.humor_flavor_id).length,
+    }),
+    [rows],
+  );
 
   const filteredRows = useMemo(() => {
     const search = query.trim().toLowerCase();
-    if (!search) {
-      return rows;
-    }
 
     return rows.filter((row) => {
+      if (!rowMatchesQuickFilter(row, quickFilter)) {
+        return false;
+      }
+
+      if (!search) {
+        return true;
+      }
+
       const searchableValues = [
         normalizeSearch(row.content),
         normalizeSearch(row.id),
@@ -116,7 +161,7 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
 
       return searchableValues.some((value) => value.includes(search));
     });
-  }, [query, rows]);
+  }, [query, rows, quickFilter]);
 
   const stats = useMemo(() => {
     const publicCount = rows.filter((row) => row.is_public === true).length;
@@ -137,7 +182,7 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
     const matched = filteredRows.length.toLocaleString();
     const tableTotal = typeof totalCount === "number" ? totalCount.toLocaleString() : null;
 
-    if (query.trim().length > 0) {
+    if (query.trim().length > 0 || quickFilter !== "all") {
       if (tableTotal) {
         return `Showing ${matched} of ${loaded} loaded captions (${tableTotal} total).`;
       }
@@ -150,16 +195,16 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
     }
 
     return `Showing ${loaded} captions.`;
-  }, [filteredRows.length, query, rows.length, totalCount]);
+  }, [filteredRows.length, query, quickFilter, rows.length, totalCount]);
 
-  function rowKey(row: CaptionRow, index: number) {
+  function rowKey(row: CaptionRow, index: number): string {
     if (row.id) {
       return row.id;
     }
     return `row-${index}`;
   }
 
-  function resolveFlavor(row: CaptionRow) {
+  function resolveFlavor(row: CaptionRow): string {
     if (!row.humor_flavor_id) {
       return "None";
     }
@@ -173,76 +218,108 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">Captions</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+      <h1 className="admin-page-title">Captions</h1>
+      <p className="admin-page-description">
         Read-only caption records from <code>public.captions</code>.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Total Captions</p>
-          <p className="mt-1 text-lg font-semibold text-zinc-900">{totalCount ?? rows.length}</p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="admin-stat-card px-5 py-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Captions</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{totalCount ?? rows.length}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Public</p>
-          <p className="mt-1 text-lg font-semibold text-zinc-900">{stats.publicCount}</p>
+        <div className="admin-stat-card px-5 py-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Public</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{stats.publicCount}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Featured</p>
-          <p className="mt-1 text-lg font-semibold text-zinc-900">{stats.featuredCount}</p>
+        <div className="admin-stat-card px-5 py-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Featured</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{stats.featuredCount}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Avg Likes (Loaded)</p>
-          <p className="mt-1 text-lg font-semibold text-zinc-900">{stats.averageLikes.toFixed(2)}</p>
+        <div className="admin-stat-card px-5 py-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Avg Likes (Loaded)</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{stats.averageLikes.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-zinc-700">{summary}</p>
+      <section className="admin-toolbar-card mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="admin-summary-pill">{summary}</p>
         <div className="w-full max-w-md">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search content, caption ID, image ID, request ID, prompt chain ID, flavor ID..."
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm"
+            className="admin-input"
           />
         </div>
+      </section>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          { key: "all", label: "All" },
+          { key: "public", label: "Public" },
+          { key: "featured", label: "Featured" },
+          { key: "high-like", label: "10+ Likes" },
+          { key: "recent", label: "Last 7 Days" },
+          { key: "no-flavor", label: "No Flavor" },
+        ].map((filterOption) => {
+          const key = filterOption.key as QuickFilterKey;
+          const active = key === quickFilter;
+
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setQuickFilter(key)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+                active
+                  ? "admin-filter-chip admin-filter-chip-active"
+                  : "admin-filter-chip hover:border-slate-300 hover:bg-white/90"
+              }`}
+            >
+              <span>{filterOption.label}</span>
+              <span className={`rounded-full px-1.5 py-0.5 font-mono text-[11px] ${active ? "bg-indigo-600/90" : "bg-slate-100"}`}>
+                {quickFilterCounts[key]}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      <p className="mt-2 text-xs text-zinc-500">Click a row to view full caption and metadata.</p>
+      <p className="mt-2 text-xs text-slate-500">Click a row to view full caption and metadata.</p>
 
-      <div className="mt-5 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full table-fixed text-sm">
+      <div className="admin-table-wrap mt-5">
+        <table className="admin-table min-w-full table-fixed">
           <colgroup>
-            <col className="w-[38%]" />
+            <col className="w-[36%]" />
             <col className="w-28" />
             <col className="w-20" />
             <col className="w-28" />
-            <col className="w-36" />
+            <col className="w-40" />
             <col className="w-44" />
-            <col className="w-36" />
-            <col className="w-24" />
-            <col className="w-24" />
-            <col className="w-36" />
+            <col className="w-40" />
+            <col className="w-28" />
+            <col className="w-28" />
+            <col className="w-44" />
           </colgroup>
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+          <thead className="text-left">
             <tr>
-              <th className="px-4 py-3">Caption</th>
-              <th className="px-4 py-3">Visibility</th>
-              <th className="px-4 py-3">Likes</th>
-              <th className="px-4 py-3">Featured</th>
-              <th className="px-4 py-3">Humor Flavor</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Image ID</th>
-              <th className="px-4 py-3">Request</th>
-              <th className="px-4 py-3">Prompt Chain</th>
-              <th className="px-4 py-3">ID</th>
+              <th className="px-5 py-3.5">Caption</th>
+              <th className="px-5 py-3.5">Visibility</th>
+              <th className="px-5 py-3.5">Likes</th>
+              <th className="px-5 py-3.5">Featured</th>
+              <th className="px-5 py-3.5">Humor Flavor</th>
+              <th className="px-5 py-3.5">Created</th>
+              <th className="px-5 py-3.5">Image ID</th>
+              <th className="px-5 py-3.5">Request</th>
+              <th className="px-5 py-3.5">Prompt Chain</th>
+              <th className="px-5 py-3.5">ID</th>
             </tr>
           </thead>
           <tbody>
             {errorMessage ? (
               <tr>
-                <td className="px-4 py-4 text-sm text-red-600" colSpan={10}>
+                <td className="px-5 py-4.5 text-sm text-red-600" colSpan={10}>
                   {errorMessage}
                 </td>
               </tr>
@@ -254,117 +331,131 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
                 const likeToneClass =
                   likeCount !== null && likeCount < 0
                     ? "border-rose-200 bg-rose-50 text-rose-700"
-                    : "border-zinc-200 bg-zinc-100 text-zinc-700";
+                    : "border-slate-200 bg-slate-100 text-slate-700";
 
                 return (
                   <Fragment key={key}>
                     <tr
-                      className="cursor-pointer border-t border-zinc-100 align-top text-zinc-700 transition-colors hover:bg-zinc-50/90"
+                      className="cursor-pointer"
                       onClick={() => toggleExpanded(key)}
                     >
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         <div className="max-w-4xl">
-                          <p className={row.content ? "leading-6 text-zinc-900" : "leading-6 text-zinc-400"} title={row.content ?? "No caption content"}>
+                          <p className={row.content ? "leading-6 text-slate-900" : "leading-6 text-slate-400"} title={row.content ?? "No caption content"}>
                             {previewCaption(row.content)}
                           </p>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {row.is_public === true ? (
-                          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          <span className="admin-badge border-emerald-200 bg-emerald-50/90 text-emerald-700">
                             Public
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                          <span className="admin-badge">
                             Private
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {likeCount !== null ? (
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-xs font-medium ${likeToneClass}`}>
+                          <span className={`admin-badge font-mono ${likeToneClass}`}>
                             {likeCount}
                           </span>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {row.is_featured === true ? (
-                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                          <span className="admin-badge border-amber-200 bg-amber-50/90 text-amber-700">
                             Featured
                           </span>
                         ) : (
-                          <span className="text-xs text-zinc-400">Not featured</span>
+                          <span className="text-xs text-slate-400">Not featured</span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {row.humor_flavor_id ? (
-                          <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                          <span className="admin-badge">
                             {resolveFlavor(row)}
                           </span>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-xs text-zinc-500">{formatUtcDatetime(row.created_datetime_utc)}</td>
-                      <td className="px-4 py-4" title={row.image_id ?? "None"}>
+                      <td className="px-5 py-4.5 text-xs text-slate-500">{formatUtcDatetime(row.created_datetime_utc)}</td>
+                      <td className="px-5 py-4.5" title={row.image_id ?? "None"}>
                         {row.image_id ? (
-                          <span className="font-mono text-xs text-zinc-500">{shortId(row.image_id)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-slate-500">{shortId(row.image_id)}</span>
+                            <CopyButton value={row.image_id} label="Copy" />
+                          </div>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {row.caption_request_id ? (
-                          <span className="font-mono text-xs text-zinc-600">{row.caption_request_id}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-slate-500">{shortId(row.caption_request_id)}</span>
+                            <CopyButton value={row.caption_request_id} label="Copy" />
+                          </div>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5">
                         {row.llm_prompt_chain_id ? (
-                          <span className="font-mono text-xs text-zinc-600">{row.llm_prompt_chain_id}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-slate-500">{shortId(row.llm_prompt_chain_id)}</span>
+                            <CopyButton value={row.llm_prompt_chain_id} label="Copy" />
+                          </div>
                         ) : (
-                          <span className="text-zinc-400">None</span>
+                          <span className="text-slate-400">None</span>
                         )}
                       </td>
-                      <td className="px-4 py-4 font-mono text-xs text-zinc-400">{row.id ?? "-"}</td>
+                      <td className="px-5 py-4.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-slate-500">{shortId(row.id)}</span>
+                          <CopyButton value={row.id} label="Copy" />
+                        </div>
+                      </td>
                     </tr>
                     {isExpanded ? (
-                      <tr className="border-t border-zinc-100 bg-zinc-50/70">
-                        <td colSpan={10} className="px-4 py-4">
+                      <tr className="bg-white/45">
+                        <td colSpan={10} className="px-5 py-4.5">
                           <div className="grid gap-4 lg:grid-cols-2">
                             <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">Full Caption</p>
-                              <p className="mt-2 whitespace-pre-wrap rounded-lg border border-zinc-200 bg-white p-3 text-sm leading-6 text-zinc-800">
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Full Caption</p>
+                              <p className="admin-soft-panel mt-2 whitespace-pre-wrap p-3 text-sm leading-6 text-slate-800">
                                 {row.content?.trim() || "No caption content"}
                               </p>
                             </div>
-                            <div className="grid gap-2 text-xs text-zinc-600 sm:grid-cols-2">
+                            <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
                               <p>
-                                <span className="font-semibold text-zinc-700">Image ID:</span> {row.image_id ?? "None"}
+                                <span className="font-semibold text-slate-700">Image ID:</span> {row.image_id ?? "None"}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Profile ID:</span> {row.profile_id ?? "None"}
+                                <span className="font-semibold text-slate-700">Profile ID:</span> {row.profile_id ?? "None"}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Humor Flavor:</span> {resolveFlavor(row)}
+                                <span className="font-semibold text-slate-700">Humor Flavor:</span> {resolveFlavor(row)}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Request:</span> {row.caption_request_id ?? "None"}
+                                <span className="font-semibold text-slate-700">Request:</span> {row.caption_request_id ?? "None"}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Prompt Chain:</span> {row.llm_prompt_chain_id ?? "None"}
+                                <span className="font-semibold text-slate-700">Prompt Chain:</span> {row.llm_prompt_chain_id ?? "None"}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Created:</span> {formatUtcDatetime(row.created_datetime_utc)}
+                                <span className="font-semibold text-slate-700">Created:</span> {formatUtcDatetime(row.created_datetime_utc)}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Modified:</span> {formatUtcDatetime(row.modified_datetime_utc)}
+                                <span className="font-semibold text-slate-700">Modified:</span> {formatUtcDatetime(row.modified_datetime_utc)}
                               </p>
                               <p>
-                                <span className="font-semibold text-zinc-700">Caption ID:</span> {row.id ?? "-"}
+                                <span className="font-semibold text-slate-700">Caption ID:</span> {row.id ?? "-"}
                               </p>
                             </div>
                           </div>
@@ -376,8 +467,8 @@ export default function CaptionsTableClient({ rows, errorMessage, totalCount, hu
               })
             ) : (
               <tr>
-                <td className="px-4 py-4 text-zinc-500" colSpan={10}>
-                  No captions found.
+                <td className="px-5 py-8 text-center text-slate-500" colSpan={10}>
+                  No captions match the current filter.
                 </td>
               </tr>
             )}

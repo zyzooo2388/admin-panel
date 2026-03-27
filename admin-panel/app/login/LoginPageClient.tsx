@@ -65,17 +65,17 @@ export default function LoginPageClient() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 p-6">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-zinc-900">Admin Login</h1>
-        <p className="mt-2 text-sm text-zinc-600">Sign in with Google to access the admin panel.</p>
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_24px_rgba(15,23,42,0.06)]">
+        <h1 className="text-2xl font-semibold text-slate-900">Admin Login</h1>
+        <p className="mt-2 text-sm text-slate-500">Sign in with Google to access the admin panel.</p>
         {isSwitchAccountFlow ? (
-          <p className="mt-2 text-sm text-zinc-600">Please choose a different Google account.</p>
+          <p className="mt-2 text-sm text-slate-500">Please choose a different Google account.</p>
         ) : null}
         {hasSession ? (
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-slate-500">
             Already signed in?{" "}
-            <Link href="/admin" className="font-medium text-zinc-900 underline underline-offset-2">
+            <Link href="/admin" className="font-medium text-slate-900 underline underline-offset-2">
               Continue to admin
             </Link>
             .
@@ -86,7 +86,7 @@ export default function LoginPageClient() {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
-          className="mt-6 w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 w-full rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isLoading ? "Redirecting..." : "Sign in with Google"}
         </button>

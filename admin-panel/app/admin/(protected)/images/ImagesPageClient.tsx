@@ -198,29 +198,25 @@ export default function ImagesPageClient({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900">Images</h1>
-      <p className="mt-1 text-sm text-zinc-600">Create, edit, and delete image records.</p>
+      <h1 className="admin-page-title">Images</h1>
+      <p className="admin-page-description">Create, edit, and delete image records.</p>
 
-      {errorMessage ? (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
-      ) : null}
-      {successMessage ? (
-        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>
-      ) : null}
+      {errorMessage ? <p className="admin-alert-danger mt-4">{errorMessage}</p> : null}
+      {successMessage ? <p className="admin-alert-success mt-4">{successMessage}</p> : null}
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Create image</h2>
+      <section className="admin-card mt-6 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Create image</h2>
         <form ref={createFormRef} onSubmit={onCreateSubmit} className="mt-4 grid gap-3 md:grid-cols-3">
           <input
             name="url"
             type="url"
             required
             placeholder="https://..."
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            className="admin-input"
           />
           <button
             type="submit"
-            className="md:col-span-3 inline-flex w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="admin-button-primary md:col-span-3 inline-flex w-fit px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!urlColumn || isCreating}
           >
             {isCreating ? "Creating..." : "Create image"}
@@ -228,14 +224,14 @@ export default function ImagesPageClient({
         </form>
       </section>
 
-      <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-zinc-600">Upload image file</h2>
-        <p className="mt-1 text-xs text-zinc-500">
+      <section className="admin-card mt-4 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Upload image file</h2>
+        <p className="mt-1 text-xs text-slate-500">
           Requires a configured Supabase storage bucket via <code>NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET</code> or{" "}
           <code>SUPABASE_IMAGE_BUCKET</code>.
         </p>
         {uploadBucketWarning ? (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{uploadBucketWarning}</p>
+          <p className="admin-alert-danger mt-3 text-xs">{uploadBucketWarning}</p>
         ) : null}
         <form ref={uploadFormRef} onSubmit={onUploadSubmit} className="mt-4 grid gap-3 md:grid-cols-3">
           <input
@@ -244,11 +240,11 @@ export default function ImagesPageClient({
             accept="image/*"
             required
             disabled={Boolean(uploadBucketWarning)}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            className="admin-input disabled:cursor-not-allowed disabled:opacity-60"
           />
           <button
             type="submit"
-            className="md:col-span-3 inline-flex w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="admin-button-primary md:col-span-3 inline-flex w-fit px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!urlColumn || Boolean(uploadBucketWarning) || isUploading}
           >
             {isUploading ? "Uploading..." : "Upload image"}
@@ -256,15 +252,15 @@ export default function ImagesPageClient({
         </form>
       </section>
 
-      <section className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-[0.08em] text-zinc-500">
+      <section className="admin-table-wrap mt-6">
+        <table className="admin-table min-w-full">
+          <thead className="text-left">
             <tr>
-              <th className="px-4 py-3">Preview</th>
-              <th className="px-4 py-3">ID</th>
-              <th className="px-4 py-3">URL</th>
-              {showCreated ? <th className="px-4 py-3">Created</th> : null}
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-5 py-3.5">Preview</th>
+              <th className="px-5 py-3.5">ID</th>
+              <th className="px-5 py-3.5">URL</th>
+              {showCreated ? <th className="px-5 py-3.5">Created</th> : null}
+              <th className="px-5 py-3.5">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -275,30 +271,30 @@ export default function ImagesPageClient({
                 const createdValue = showCreated ? image[createdColumn as string] : null;
 
                 return (
-                  <tr key={id} className="border-t border-zinc-100 align-top text-zinc-700">
-                    <td className="px-4 py-3">
+                  <tr key={id}>
+                    <td className="px-5 py-3.5">
                       <ImagePreview key={`${id}:${imageUrl}`} src={imageUrl} alt={`Image ${id || "preview"}`} />
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{id || "-"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5 font-mono text-xs">{id || "-"}</td>
+                    <td className="px-5 py-3.5">
                       {imageUrl ? (
                         <a
                           href={imageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="block max-w-[24rem] truncate text-blue-600 hover:underline"
+                          className="block max-w-[24rem] truncate text-indigo-600 hover:underline"
                           title={imageUrl}
                         >
                           {imageUrl}
                         </a>
                       ) : (
-                        <span className="text-zinc-400">-</span>
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
                     {showCreated ? (
-                      <td className="px-4 py-3">{formatUtcDate(createdValue)}</td>
+                      <td className="px-5 py-3.5">{formatUtcDate(createdValue)}</td>
                     ) : null}
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <form onSubmit={onUpdateSubmit} className="mb-2 space-y-2">
                         <input type="hidden" name="id" value={id} />
                         <input type="hidden" name="url_column" value={urlColumn ?? ""} />
@@ -307,11 +303,11 @@ export default function ImagesPageClient({
                           type="url"
                           defaultValue={imageUrl}
                           required
-                          className="w-64 rounded-md border border-zinc-300 px-2 py-1.5 text-xs"
+                          className="admin-input w-64 text-xs"
                         />
                         <button
                           type="submit"
-                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                          className="admin-button-secondary px-3 py-1.5 text-xs"
                           disabled={!urlColumn || (isSaving && savingId === id)}
                         >
                           {isSaving && savingId === id ? "Saving..." : "Save"}
@@ -322,7 +318,7 @@ export default function ImagesPageClient({
                         <input type="hidden" name="id" value={id} />
                         <button
                           type="submit"
-                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                          className="admin-button-danger px-3 py-1.5 text-xs"
                         >
                           Delete
                         </button>
@@ -333,7 +329,7 @@ export default function ImagesPageClient({
               })
             ) : (
               <tr>
-                <td className="px-4 py-4 text-zinc-500" colSpan={colSpan}>
+                <td className="px-5 py-4.5 text-slate-500" colSpan={colSpan}>
                   No images found.
                 </td>
               </tr>
