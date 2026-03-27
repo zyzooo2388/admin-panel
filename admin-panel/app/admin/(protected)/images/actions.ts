@@ -135,17 +135,12 @@ export async function createImageUploadInlineAction(input: {
   if (bucketError) {
     return { ok: false as const, error: bucketError };
   }
-  if (!bucketName) {
-    return {
-      ok: false as const,
-      error: "Image upload bucket is not configured. Set SUPABASE_IMAGE_BUCKET or NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET.",
-    };
-  }
 
   const supabase = await createSupabaseServerClient();
   const safeName = sanitizeFileName(file.name);
+  const resolvedBucket = bucketName as string;
   const path = `${DEFAULT_IMAGE_UPLOAD_DIR}/${Date.now()}-${safeName}`;
-  const uploadResult = await supabase.storage.from(bucketName).upload(path, file, {
+  const uploadResult = await supabase.storage.from(resolvedBucket).upload(path, file, {
     upsert: false,
     contentType: file.type || undefined,
   });
@@ -154,7 +149,7 @@ export async function createImageUploadInlineAction(input: {
     return { ok: false as const, error: `Failed to upload image: ${uploadResult.error.message}` };
   }
 
-  const publicUrlResult = supabase.storage.from(bucketName).getPublicUrl(path);
+  const publicUrlResult = supabase.storage.from(resolvedBucket).getPublicUrl(path);
   const publicUrl = publicUrlResult.data.publicUrl;
 
   if (!publicUrl) {

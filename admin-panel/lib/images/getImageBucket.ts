@@ -6,14 +6,13 @@
  * After changing Vercel environment variables, redeploy to apply them.
  */
 export function getImageBucket() {
-  const serverBucket = process.env.SUPABASE_IMAGE_BUCKET?.trim();
-  if (serverBucket) {
-    return serverBucket;
-  }
+  const candidates = [process.env.SUPABASE_IMAGE_BUCKET, process.env.NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET];
 
-  const publicBucket = process.env.NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET?.trim();
-  if (publicBucket) {
-    return publicBucket;
+  for (const candidate of candidates) {
+    const bucket = candidate?.trim();
+    if (bucket) {
+      return bucket;
+    }
   }
 
   return null;
