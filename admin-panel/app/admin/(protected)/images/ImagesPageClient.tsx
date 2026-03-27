@@ -1,6 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+
+import { formatUtcDate } from "@/lib/dates/formatUtcDate";
 
 import ImagePreview from "./ImagePreview";
 import { createImageInlineAction, createImageUploadInlineAction, deleteImageAction, updateImageInlineAction } from "./actions";
@@ -13,6 +16,7 @@ type ImagesPageClientProps = {
   createdColumn: string | null;
   initialError: string | null;
   initialSuccess: string | null;
+  uploadBucketWarning: string | null;
 };
 
 function createdValueToTimestamp(value: unknown): number {
@@ -42,7 +46,9 @@ export default function ImagesPageClient({
   createdColumn,
   initialError,
   initialSuccess,
+  uploadBucketWarning,
 }: ImagesPageClientProps) {
+  const router = useRouter();
   const [images, setImages] = useState<ImageRecord[]>(() => sortImagesNewestFirst(initialImages, createdColumn));
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
   const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccess);
@@ -58,6 +64,10 @@ export default function ImagesPageClient({
 
   const renderedRows = useMemo(() => sortImagesNewestFirst(images, createdColumn), [images, createdColumn]);
 
+  useEffect(() => {
+    setImages(sortImagesNewestFirst(initialImages, createdColumn));
+  }, [initialImages, createdColumn]);
+
   const onCreateSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -66,7 +76,6 @@ export default function ImagesPageClient({
       setSuccessMessage(null);
       return;
     }
-
     const formData = new FormData(event.currentTarget);
     const urlValue = formData.get("url");
     const url = typeof urlValue === "string" ? urlValue.trim() : "";
@@ -85,17 +94,11 @@ export default function ImagesPageClient({
         return;
       }
 
-      setImages((previous) => {
-        if (createdColumn) {
-          return sortImagesNewestFirst([...previous, result.image], createdColumn);
-        }
-
-        return [result.image, ...previous];
-      });
-
       createFormRef.current?.reset();
       setErrorMessage(null);
       setSuccessMessage("Image created.");
+      // Refresh from the server so the database stays the source of truth for the list.
+      router.refresh();
     });
   };
 
@@ -104,6 +107,11 @@ export default function ImagesPageClient({
 
     if (!urlColumn) {
       setErrorMessage("No valid image URL column was found.");
+      setSuccessMessage(null);
+      return;
+    }
+    if (uploadBucketWarning) {
+      setErrorMessage(uploadBucketWarning);
       setSuccessMessage(null);
       return;
     }
@@ -126,17 +134,11 @@ export default function ImagesPageClient({
         return;
       }
 
-      setImages((previous) => {
-        if (createdColumn) {
-          return sortImagesNewestFirst([...previous, result.image], createdColumn);
-        }
-
-        return [result.image, ...previous];
-      });
-
       uploadFormRef.current?.reset();
       setErrorMessage(null);
       setSuccessMessage("Image uploaded and created.");
+      // Refresh from the server so uploads and URL creates both render persisted rows.
+      router.refresh();
     });
   };
 
@@ -232,12 +234,22 @@ export default function ImagesPageClient({
           Requires a configured Supabase storage bucket via <code>NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET</code> or{" "}
           <code>SUPABASE_IMAGE_BUCKET</code>.
         </p>
+        {uploadBucketWarning ? (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{uploadBucketWarning}</p>
+        ) : null}
         <form ref={uploadFormRef} onSubmit={onUploadSubmit} className="mt-4 grid gap-3 md:grid-cols-3">
-          <input name="file" type="file" accept="image/*" required className="rounded-lg border border-zinc-300 px-3 py-2 text-sm" />
+          <input
+            name="file"
+            type="file"
+            accept="image/*"
+            required
+            disabled={Boolean(uploadBucketWarning)}
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          />
           <button
             type="submit"
             className="md:col-span-3 inline-flex w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!urlColumn || isUploading}
+            disabled={!urlColumn || Boolean(uploadBucketWarning) || isUploading}
           >
             {isUploading ? "Uploading..." : "Upload image"}
           </button>
@@ -284,7 +296,7 @@ export default function ImagesPageClient({
                       )}
                     </td>
                     {showCreated ? (
-                      <td className="px-4 py-3">{createdValue ? new Date(String(createdValue)).toLocaleString() : "-"}</td>
+                      <td className="px-4 py-3">{formatUtcDate(createdValue)}</td>
                     ) : null}
                     <td className="px-4 py-3">
                       <form onSubmit={onUpdateSubmit} className="mb-2 space-y-2">

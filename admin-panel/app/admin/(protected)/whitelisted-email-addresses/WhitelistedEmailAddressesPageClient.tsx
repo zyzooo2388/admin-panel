@@ -50,6 +50,16 @@ function validateEmailAddress(value: string) {
   return null;
 }
 
+function hasDuplicateEmail(rows: WhitelistedEmailAddressRow[], emailAddress: string, excludeId?: string) {
+  return rows.some((row) => {
+    if (excludeId && String(row.id) === excludeId) {
+      return false;
+    }
+
+    return normalizeEmailAddress(String(row.email_address ?? "")) === emailAddress;
+  });
+}
+
 function formatUtc(value: string | null) {
   if (!value) {
     return null;
@@ -101,6 +111,12 @@ export default function WhitelistedEmailAddressesPageClient({
       return;
     }
 
+    if (hasDuplicateEmail(rows, normalized)) {
+      setErrorMessage("This email is already in the whitelist.");
+      setSuccessMessage(null);
+      return;
+    }
+
     startCreateTransition(async () => {
       const result = await createWhitelistedEmailAddressInlineAction({ emailAddress: normalized });
       if (!result.ok) {
@@ -124,6 +140,12 @@ export default function WhitelistedEmailAddressesPageClient({
 
     if (validationError) {
       setErrorMessage(validationError);
+      setSuccessMessage(null);
+      return;
+    }
+
+    if (hasDuplicateEmail(rows, normalized, id)) {
+      setErrorMessage("That email is already used by another whitelist entry.");
       setSuccessMessage(null);
       return;
     }

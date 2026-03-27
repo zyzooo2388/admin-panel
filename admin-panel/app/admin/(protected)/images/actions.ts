@@ -4,15 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireSuperadmin } from "@/lib/auth/requireSuperadmin";
-import { IMAGE_URL_FALLBACK_COLUMNS } from "@/lib/db/columnFallback";
+import { CREATED_TIMESTAMP_FALLBACK_COLUMNS, IMAGE_URL_FALLBACK_COLUMNS } from "@/lib/db/columnFallback";
+import { getImageBucket, getImageBucketValidationError } from "@/lib/images/getImageBucket";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const IMAGE_CREATED_TIMESTAMP_COLUMNS = ["created_at", "createdAt", "inserted_at"] as const;
 const DEFAULT_IMAGE_UPLOAD_DIR = "admin-uploads";
-
-function getImageBucketName() {
-  return process.env.NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET ?? process.env.SUPABASE_IMAGE_BUCKET ?? null;
-}
 
 function cleanOptionalString(value: FormDataEntryValue | null) {
   if (typeof value !== "string") {
@@ -42,7 +38,7 @@ function cleanCreatedColumn(value: string | null | undefined) {
     return null;
   }
 
-  return IMAGE_CREATED_TIMESTAMP_COLUMNS.includes(value as (typeof IMAGE_CREATED_TIMESTAMP_COLUMNS)[number]) ? value : null;
+  return CREATED_TIMESTAMP_FALLBACK_COLUMNS.includes(value as (typeof CREATED_TIMESTAMP_FALLBACK_COLUMNS)[number]) ? value : null;
 }
 
 function sanitizeFileName(value: string) {
@@ -64,6 +60,7 @@ export async function createImageAction(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
+  // Create writes directly to Supabase so page refreshes show the persisted record.
   const payload: Record<string, string> = {
     [urlColumn]: url,
     created_by_user_id: auth.user.id,
@@ -95,6 +92,7 @@ export async function createImageInlineAction(input: { url: string; urlColumn: s
   }
 
   const supabase = await createSupabaseServerClient();
+  // Inline create still inserts into Supabase first; the client should refetch after success.
   const payload: Record<string, string> = {
     [urlColumn]: url,
     created_by_user_id: auth.user.id,
@@ -125,7 +123,8 @@ export async function createImageUploadInlineAction(input: {
   const file = input?.file;
   const urlColumn = cleanUrlColumn(input?.urlColumn ?? null);
   const createdColumn = cleanCreatedColumn(input?.createdColumn);
-  const bucketName = getImageBucketName();
+  const bucketName = getImageBucket();
+  const bucketError = getImageBucketValidationError(bucketName);
 
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false as const, error: "A file is required." };
@@ -133,10 +132,13 @@ export async function createImageUploadInlineAction(input: {
   if (!urlColumn) {
     return { ok: false as const, error: "No valid image URL column was found." };
   }
+  if (bucketError) {
+    return { ok: false as const, error: bucketError };
+  }
   if (!bucketName) {
     return {
       ok: false as const,
-      error: "Image upload bucket is not configured. Set NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET or SUPABASE_IMAGE_BUCKET.",
+      error: "Image upload bucket is not configured. Set SUPABASE_IMAGE_BUCKET or NEXT_PUBLIC_SUPABASE_IMAGE_BUCKET.",
     };
   }
 

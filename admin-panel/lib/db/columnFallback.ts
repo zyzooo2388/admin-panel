@@ -1,11 +1,13 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 
 export const CREATED_TIMESTAMP_FALLBACK_COLUMNS = [
+  "created_datetime_utc",
   "created_at",
   "createdAt",
   "inserted_at",
   "timestamp",
   "created",
+  "modified_datetime_utc",
   "updated_at",
 ] as const;
 export const CAPTION_TEXT_FALLBACK_COLUMNS = ["text", "caption", "content", "body", "caption_text"] as const;

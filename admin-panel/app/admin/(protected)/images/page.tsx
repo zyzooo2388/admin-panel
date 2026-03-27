@@ -1,5 +1,6 @@
 import { requireSuperadmin } from "@/lib/auth/requireSuperadmin";
-import { IMAGE_URL_FALLBACK_COLUMNS, pickFirstWorkingColumn } from "@/lib/db/columnFallback";
+import { CREATED_TIMESTAMP_FALLBACK_COLUMNS, IMAGE_URL_FALLBACK_COLUMNS, pickFirstWorkingColumn } from "@/lib/db/columnFallback";
+import { getImageBucket, getImageBucketValidationError } from "@/lib/images/getImageBucket";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import ImagesPageClient from "./ImagesPageClient";
@@ -8,15 +9,15 @@ type Props = {
   searchParams: Promise<{ error?: string; success?: string }>;
 };
 
-const IMAGE_CREATED_TIMESTAMP_COLUMNS = ["created_at", "createdAt", "inserted_at"] as const;
-
 export default async function ImagesPage({ searchParams }: Props) {
   await requireSuperadmin();
   const supabase = await createSupabaseServerClient();
   const params = await searchParams;
+  const imageBucket = getImageBucket();
+  const imageBucketWarning = getImageBucketValidationError(imageBucket);
 
   const urlColumn = await pickFirstWorkingColumn(supabase, "images", IMAGE_URL_FALLBACK_COLUMNS);
-  const createdColumn = await pickFirstWorkingColumn(supabase, "images", IMAGE_CREATED_TIMESTAMP_COLUMNS);
+  const createdColumn = await pickFirstWorkingColumn(supabase, "images", CREATED_TIMESTAMP_FALLBACK_COLUMNS);
 
   let images: Record<string, unknown>[] | null = null;
   let errorMessage: string | null = null;
@@ -29,6 +30,7 @@ export default async function ImagesPage({ searchParams }: Props) {
       selectColumns.push(createdColumn);
     }
 
+    // The list is always sourced from the database, so refresh/navigation must show persisted records.
     let query = supabase.from("images").select(selectColumns.join(", "));
     if (createdColumn) {
       query = query.order(createdColumn, { ascending: false });
@@ -46,6 +48,7 @@ export default async function ImagesPage({ searchParams }: Props) {
       createdColumn={createdColumn}
       initialError={errorMessage ?? params.error ?? null}
       initialSuccess={params.success ?? null}
+      uploadBucketWarning={imageBucketWarning}
     />
   );
 }

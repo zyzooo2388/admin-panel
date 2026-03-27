@@ -11,6 +11,11 @@ type AllowedSignupDomainRow = {
   apex_domain: string | null;
 };
 
+type SupabaseMutationError = {
+  code?: string;
+  message: string;
+} | null;
+
 const APEX_DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 function normalizeApexDomain(value: unknown) {
@@ -40,6 +45,20 @@ function toRow(data: Record<string, unknown> | null): AllowedSignupDomainRow {
   };
 }
 
+function getCreateDomainErrorMessage(error: SupabaseMutationError) {
+  if (!error) {
+    return "Failed to create domain. Please try again.";
+  }
+
+  // Postgres error code 23505 means a unique constraint violation, which is how
+  // Supabase reports attempts to insert a domain that already exists.
+  if (error.code === "23505" || error.message.toLowerCase().includes("duplicate key value")) {
+    return "This domain is already in the allowed list.";
+  }
+
+  return "Failed to create domain. Please try again.";
+}
+
 export async function createAllowedSignupDomainInlineAction(input: { apexDomain: string }) {
   const auth = await requireSuperadmin();
 
@@ -58,10 +77,10 @@ export async function createAllowedSignupDomainInlineAction(input: { apexDomain:
       modified_by_user_id: auth.user.id,
     })
     .select("id, created_datetime_utc, apex_domain")
-    .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
+    .single()) as { data: Record<string, unknown> | null; error: SupabaseMutationError };
 
   if (result.error) {
-    return { ok: false as const, error: `Failed to create domain: ${result.error.message}` };
+    return { ok: false as const, error: getCreateDomainErrorMessage(result.error) };
   }
 
   revalidatePath("/admin/allowed-signup-domains");

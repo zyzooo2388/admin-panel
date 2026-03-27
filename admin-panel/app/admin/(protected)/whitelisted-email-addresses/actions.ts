@@ -12,6 +12,11 @@ type WhitelistedEmailAddressRow = {
   email_address: string | null;
 };
 
+type SupabaseError = {
+  code?: string;
+  message: string;
+} | null;
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeEmailAddress(value: unknown) {
@@ -43,6 +48,29 @@ function toRow(data: Record<string, unknown> | null): WhitelistedEmailAddressRow
   };
 }
 
+async function emailExists(params: { emailAddress: string; excludeId?: string }) {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase.from("whitelist_email_addresses").select("id").eq("email_address", params.emailAddress).limit(1);
+
+  if (params.excludeId) {
+    query = query.neq("id", params.excludeId);
+  }
+
+  const result = (await query) as { data: Array<{ id: string | number }> | null; error: SupabaseError };
+  return {
+    exists: Boolean(result.data && result.data.length > 0),
+    error: result.error,
+  };
+}
+
+function isDuplicateError(error: SupabaseError) {
+  if (!error) {
+    return false;
+  }
+
+  return error.code === "23505" || error.message.toLowerCase().includes("duplicate key value");
+}
+
 export async function createWhitelistedEmailAddressInlineAction(input: { emailAddress: string }) {
   const auth = await requireSuperadmin();
 
@@ -50,6 +78,14 @@ export async function createWhitelistedEmailAddressInlineAction(input: { emailAd
   const validationError = validateEmailAddress(emailAddress);
   if (validationError) {
     return { ok: false as const, error: validationError };
+  }
+
+  const duplicateCheck = await emailExists({ emailAddress });
+  if (duplicateCheck.error) {
+    return { ok: false as const, error: "Failed to create email address. Please try again." };
+  }
+  if (duplicateCheck.exists) {
+    return { ok: false as const, error: "This email is already in the whitelist." };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -61,10 +97,14 @@ export async function createWhitelistedEmailAddressInlineAction(input: { emailAd
       modified_by_user_id: auth.user.id,
     })
     .select("id, created_datetime_utc, modified_datetime_utc, email_address")
-    .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
+    .single()) as { data: Record<string, unknown> | null; error: SupabaseError };
 
   if (result.error) {
-    return { ok: false as const, error: `Failed to create email address: ${result.error.message}` };
+    if (isDuplicateError(result.error)) {
+      return { ok: false as const, error: "This email is already in the whitelist." };
+    }
+
+    return { ok: false as const, error: "Failed to create email address. Please try again." };
   }
 
   revalidatePath("/admin/whitelisted-email-addresses");
@@ -86,6 +126,14 @@ export async function updateWhitelistedEmailAddressInlineAction(input: { id: str
     return { ok: false as const, error: validationError };
   }
 
+  const duplicateCheck = await emailExists({ emailAddress, excludeId: id });
+  if (duplicateCheck.error) {
+    return { ok: false as const, error: "Failed to update email address. Please try again." };
+  }
+  if (duplicateCheck.exists) {
+    return { ok: false as const, error: "That email is already used by another whitelist entry." };
+  }
+
   const supabase = await createSupabaseServerClient();
   const result = (await supabase
     .from("whitelist_email_addresses")
@@ -95,10 +143,14 @@ export async function updateWhitelistedEmailAddressInlineAction(input: { id: str
     })
     .eq("id", id)
     .select("id, created_datetime_utc, modified_datetime_utc, email_address")
-    .single()) as { data: Record<string, unknown> | null; error: { message: string } | null };
+    .single()) as { data: Record<string, unknown> | null; error: SupabaseError };
 
   if (result.error) {
-    return { ok: false as const, error: `Failed to update email address: ${result.error.message}` };
+    if (isDuplicateError(result.error)) {
+      return { ok: false as const, error: "That email is already used by another whitelist entry." };
+    }
+
+    return { ok: false as const, error: "Failed to update email address. Please try again." };
   }
 
   revalidatePath("/admin/whitelisted-email-addresses");
