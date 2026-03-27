@@ -65,6 +65,14 @@ function toDayKey(value: unknown): string | null {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeRows(data: unknown): TimestampRow[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.filter((row): row is TimestampRow => typeof row === "object" && row !== null);
+}
+
 async function getTableCount(supabase: SupabaseServerClient, tableName: string): Promise<number | null> {
   try {
     const { count, error } = await supabase.from(tableName).select("*", { count: "exact", head: true });
@@ -140,13 +148,19 @@ async function getDailyCounts(
   while (true) {
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await supabase.from(tableName).select(`id, ${timestampColumn}`).range(from, to);
+    const rows = normalizeRows(data);
 
-    if (error || !data || data.length === 0) {
+    if (error || rows.length === 0) {
       break;
     }
 
-    for (const row of data as TimestampRow[]) {
-      const key = toDayKey(row[timestampColumn]);
+    for (const row of rows) {
+      const timestampValue = row[timestampColumn];
+      if (timestampValue === null || timestampValue === undefined) {
+        continue;
+      }
+
+      const key = toDayKey(timestampValue);
       if (!key) {
         continue;
       }
@@ -154,7 +168,7 @@ async function getDailyCounts(
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
-    if (data.length < PAGE_SIZE) {
+    if (rows.length < PAGE_SIZE) {
       break;
     }
 
