@@ -1,17 +1,23 @@
 import { Suspense } from "react";
 
+import AuthLandingShell from "@/components/auth/AuthLandingShell";
+
 import LoginPageClient from "./LoginPageClient";
 
 export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_24px_rgba(15,23,42,0.06)]">
-            <h1 className="text-2xl font-semibold text-slate-900">Admin Login</h1>
-            <p className="mt-2 text-sm text-slate-500">Loading login...</p>
+        <AuthLandingShell
+          badgeLabel="Admin access"
+          title="Admin Login"
+          description="Sign in with Google to access the admin panel."
+          footer="Secure admin access for authorized team members."
+        >
+          <div className="rounded-[1.5rem] border border-white/70 bg-white/70 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_12px_32px_rgba(148,163,184,0.12)]">
+            <p className="text-sm text-slate-500">Loading login...</p>
           </div>
-        </main>
+        </AuthLandingShell>
       }
     >
       <LoginPageClient />

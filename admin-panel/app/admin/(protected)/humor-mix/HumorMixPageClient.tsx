@@ -364,28 +364,44 @@ export default function HumorMixPageClient({
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{row.id}</td>
                       <td className="px-5 py-3.5 whitespace-nowrap font-mono text-xs text-slate-700">{formatUtc(row.created_datetime_utc)}</td>
                       <td className="px-5 py-3.5 min-w-[220px]">
-                        <select
-                          value={form.humor_flavor_id}
-                          onChange={(event) => setFormValue(row.id, "humor_flavor_id", event.target.value)}
-                          className="admin-input h-9 w-full min-w-[220px] overflow-visible px-4 pr-10 whitespace-nowrap"
-                          aria-label={`Humor flavor for record ${row.id}`}
-                        >
-                          <option value="">
-                            {humorFlavorsError
-                              ? "Failed to load humor flavors"
-                              : flavorOptionsAvailable
-                                ? "Select humor flavor"
-                                : "No humor flavors available"}
-                          </option>
-                          {!validFlavorIds.has(Number(form.humor_flavor_id)) && form.humor_flavor_id.trim() ? (
-                            <option value={form.humor_flavor_id}>{form.humor_flavor_id} - missing flavor</option>
-                          ) : null}
-                          {humorFlavors.map((flavor) => (
-                            <option key={flavor.id} value={String(flavor.id)}>
-                              {getHumorFlavorOptionLabel(flavor)}
+                        <div className="relative w-full min-w-[260px]">
+                          <select
+                            value={form.humor_flavor_id}
+                            onChange={(event) => setFormValue(row.id, "humor_flavor_id", event.target.value)}
+                            className="admin-input h-9 w-full min-w-0 appearance-none overflow-hidden text-ellipsis whitespace-nowrap pl-4 pr-12"
+                            aria-label={`Humor flavor for record ${row.id}`}
+                          >
+                            <option value="">
+                              {humorFlavorsError
+                                ? "Failed to load humor flavors"
+                                : flavorOptionsAvailable
+                                  ? "Select humor flavor"
+                                  : "No humor flavors available"}
                             </option>
-                          ))}
-                        </select>
+                            {!validFlavorIds.has(Number(form.humor_flavor_id)) && form.humor_flavor_id.trim() ? (
+                              <option value={form.humor_flavor_id}>{form.humor_flavor_id} - missing flavor</option>
+                            ) : null}
+                            {humorFlavors.map((flavor) => (
+                              <option key={flavor.id} value={String(flavor.id)}>
+                                {getHumorFlavorOptionLabel(flavor)}
+                              </option>
+                            ))}
+                          </select>
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500"
+                          >
+                            <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                              <path
+                                d="M5 7.5L10 12.5L15 7.5"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        </div>
                       </td>
                       <td className="px-5 py-3.5">
                         <input
