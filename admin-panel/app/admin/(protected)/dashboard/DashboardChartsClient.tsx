@@ -32,10 +32,61 @@ type DailyPoint = {
   images: number;
 };
 
+type RatingsDailyPoint = {
+  day: string;
+  label: string;
+  likes: number;
+  dislikes: number;
+  total: number;
+};
+
+type CaptionRatingSummary = {
+  totalRatings: number;
+  totalLikes: number;
+  totalDislikes: number;
+  likeRate: number | null;
+  dislikeRate: number | null;
+  netScore: number;
+};
+
+type TopCaptionInsight = {
+  captionId: string;
+  caption: string;
+  totalRatings: number;
+  likes: number;
+  dislikes: number;
+  netScore: number;
+};
+
+type TopFlavorInsight = {
+  flavor: string;
+  totalRatings: number;
+  likes: number;
+  dislikes: number;
+  likeRate: number;
+};
+
+type RecentRatingInsight = {
+  id: string;
+  caption: string;
+  voteValue: number;
+  createdAtLabel: string;
+};
+
+type CaptionRatingInsights = {
+  summary: CaptionRatingSummary;
+  ratingsOverTime: RatingsDailyPoint[];
+  topCaptions: TopCaptionInsight[];
+  topFlavors: TopFlavorInsight[];
+  recentRatings: RecentRatingInsight[];
+  hasRatingData: boolean;
+};
+
 type Props = {
   countCards: CountCard[];
   captionsByFlavor: FlavorCountPoint[];
   dailyVolume: DailyPoint[];
+  captionRatingInsights: CaptionRatingInsights;
 };
 
 type ActivityItem = {
@@ -63,6 +114,21 @@ function formatCount(value: number | null): string {
   }
 
   return value.toLocaleString("en-US");
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null) {
+    return "N/A";
+  }
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatSigned(value: number): string {
+  return value > 0 ? `+${value.toLocaleString("en-US")}` : value.toLocaleString("en-US");
+}
+
+function truncateCaption(value: string, max = 96): string {
+  return value.length > max ? `${value.slice(0, max - 1)}...` : value;
 }
 
 const KPI_STYLES: Record<
@@ -278,8 +344,40 @@ function DashboardChartCard({
   );
 }
 
-export default function DashboardChartsClient({ countCards, captionsByFlavor, dailyVolume }: Props) {
+export default function DashboardChartsClient({ countCards, captionsByFlavor, dailyVolume, captionRatingInsights }: Props) {
   const hasVolumeData = dailyVolume.length > 0;
+  const ratingSummaryCards = [
+    {
+      label: "Total Rated Captions",
+      value: captionRatingInsights.summary.totalRatings.toLocaleString("en-US"),
+      hint: "All recorded likes and dislikes",
+    },
+    {
+      label: "Total Likes",
+      value: captionRatingInsights.summary.totalLikes.toLocaleString("en-US"),
+      hint: "Positive votes (`vote_value = 1`)",
+    },
+    {
+      label: "Total Dislikes",
+      value: captionRatingInsights.summary.totalDislikes.toLocaleString("en-US"),
+      hint: "Negative votes (`vote_value = -1`)",
+    },
+    {
+      label: "Like Rate",
+      value: formatPercent(captionRatingInsights.summary.likeRate),
+      hint: "Likes / total ratings",
+    },
+    {
+      label: "Dislike Rate",
+      value: formatPercent(captionRatingInsights.summary.dislikeRate),
+      hint: "Dislikes / total ratings",
+    },
+    {
+      label: "Net Score",
+      value: formatSigned(captionRatingInsights.summary.netScore),
+      hint: "Likes minus dislikes",
+    },
+  ];
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-violet-100/80 bg-gradient-to-br from-[#fbf9ff] via-[#f5f2ff] to-[#eff1ff] p-5 shadow-[0_24px_70px_rgba(79,70,229,0.12)] sm:p-7 lg:p-8">
@@ -345,6 +443,198 @@ export default function DashboardChartsClient({ countCards, captionsByFlavor, da
             {countCards.map((card) => (
               <DashboardMetricCard key={card.label} card={card} />
             ))}
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-slate-700">Caption Rating Statistics</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Aggregated caption feedback insights from current user rating records.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            {ratingSummaryCards.map((card) => (
+              <article
+                key={card.label}
+                className="rounded-[1.6rem] border border-violet-100/80 bg-white/82 px-4 py-4 shadow-[0_1px_2px_rgba(30,41,59,0.04),0_14px_30px_rgba(109,40,217,0.1)] backdrop-blur-sm"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
+                <p className="mt-2 text-[1.55rem] font-semibold leading-none tracking-tight text-slate-900">{card.value}</p>
+                <p className="mt-2 text-xs text-slate-500">{card.hint}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+            <DashboardChartCard
+              title="Caption Ratings Over Time"
+              description="Daily UTC likes vs dislikes from caption vote activity."
+              sparkleClassName="text-violet-300/60"
+              icon={
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <path
+                    d="M4 14.5 8 10l3 3 5-6 4 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
+            >
+              {!captionRatingInsights.hasRatingData ? (
+                <EmptyChartState message="No caption rating data available yet." />
+              ) : (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={captionRatingInsights.ratingsOverTime} margin={{ top: 8, right: 16, left: 0, bottom: 12 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 6" stroke="#e8e7fb" />
+                      <XAxis
+                        dataKey="label"
+                        type="category"
+                        allowDuplicatedCategory={false}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                      />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6b7280" }} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "16px",
+                          border: "1px solid #ddd6fe",
+                          backgroundColor: "rgba(255,255,255,0.96)",
+                          boxShadow: "0 14px 30px rgba(79, 70, 229, 0.15)",
+                          color: "#1e1b4b",
+                        }}
+                      />
+                      <Legend wrapperStyle={{ color: "#475569", fontSize: "12px" }} />
+                      <Line
+                        dataKey="likes"
+                        name="Likes"
+                        stroke="#7c3aed"
+                        strokeWidth={2.6}
+                        dot={false}
+                        activeDot={{ r: 4, fill: "#7c3aed", stroke: "#ffffff", strokeWidth: 1.5 }}
+                      />
+                      <Line
+                        dataKey="dislikes"
+                        name="Dislikes"
+                        stroke="#ef4444"
+                        strokeWidth={2.6}
+                        dot={false}
+                        activeDot={{ r: 4, fill: "#ef4444", stroke: "#ffffff", strokeWidth: 1.5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </DashboardChartCard>
+
+            <article className="relative overflow-hidden rounded-[2rem] border border-violet-100/80 bg-white/82 p-6 shadow-[0_1px_2px_rgba(30,41,59,0.04),0_18px_38px_rgba(109,40,217,0.12)] backdrop-blur-sm">
+              <div className="pointer-events-none absolute right-5 top-5 text-rose-300/60">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3 fill-current">
+                  <path d="m12 2 1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-slate-700">Recent Rating Activity</h3>
+              <p className="mt-1.5 text-xs text-slate-500">Latest caption votes by timestamp (UTC).</p>
+              {!captionRatingInsights.hasRatingData ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-violet-200/80 bg-white/55 px-4 py-5 text-sm text-slate-500">
+                  No recent caption ratings yet.
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-2.5">
+                  {captionRatingInsights.recentRatings.map((item) => (
+                    <li
+                      key={item.id}
+                      className="rounded-[1.2rem] border border-violet-100/70 bg-gradient-to-r from-white to-violet-50/55 px-3.5 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-slate-700">{truncateCaption(item.caption, 80)}</p>
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                            item.voteValue > 0
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          {item.voteValue > 0 ? "Like" : "Dislike"}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-slate-500">{item.createdAtLabel}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <article className="relative overflow-hidden rounded-[2rem] border border-violet-100/80 bg-white/82 p-6 shadow-[0_1px_2px_rgba(30,41,59,0.04),0_18px_38px_rgba(109,40,217,0.12)] backdrop-blur-sm">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-slate-700">Most Rated Captions</h3>
+              <p className="mt-1.5 text-xs text-slate-500">Captions with the highest number of user ratings.</p>
+              {captionRatingInsights.topCaptions.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-violet-200/80 bg-white/55 px-4 py-5 text-sm text-slate-500">
+                  No caption rating insights available yet.
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-3">
+                  {captionRatingInsights.topCaptions.map((item) => (
+                    <li key={item.captionId} className="rounded-[1.2rem] border border-violet-100/70 bg-gradient-to-r from-white to-indigo-50/50 px-4 py-3">
+                      <p className="text-sm text-slate-700">{truncateCaption(item.caption)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                        <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 font-semibold text-violet-700">
+                          {item.totalRatings} ratings
+                        </span>
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
+                          {item.likes} likes
+                        </span>
+                        <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 font-semibold text-rose-700">
+                          {item.dislikes} dislikes
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-700">
+                          net {formatSigned(item.netScore)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+
+            <article className="relative overflow-hidden rounded-[2rem] border border-violet-100/80 bg-white/82 p-6 shadow-[0_1px_2px_rgba(30,41,59,0.04),0_18px_38px_rgba(109,40,217,0.12)] backdrop-blur-sm">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-slate-700">Top Humor Flavors by Like Rate</h3>
+              <p className="mt-1.5 text-xs text-slate-500">Flavors ranked by positive rating rate from associated caption votes.</p>
+              {captionRatingInsights.topFlavors.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-violet-200/80 bg-white/55 px-4 py-5 text-sm text-slate-500">
+                  No flavor rating insights available yet.
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-2.5">
+                  {captionRatingInsights.topFlavors.map((item) => (
+                    <li
+                      key={item.flavor}
+                      className="flex items-center justify-between gap-3 rounded-[1.2rem] border border-violet-100/70 bg-gradient-to-r from-white to-violet-50/55 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">{item.flavor}</p>
+                        <p className="text-[11px] text-slate-500">
+                          {item.totalRatings} ratings · {item.likes} likes · {item.dislikes} dislikes
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                        {formatPercent(item.likeRate)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
           </div>
         </section>
 
